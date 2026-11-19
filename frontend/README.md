@@ -1,5 +1,8 @@
 # BeautyScale frontend
 
+> Part of the [BeautyScale Brand Order Requests](../README.md) submission.
+> The root README covers running the whole stack and the design choices.
+
 React + Vite + TypeScript client for the Brand Order Requests workflow, using
 TanStack Query for server state and React Router for routing.
 
@@ -13,11 +16,6 @@ TanStack Query for server state and React Router for routing.
 | `npm run lint` | oxlint |
 | `npm run build` | Typecheck and production build to `dist/` |
 | `npm run preview` | Serve the production build |
-
-## Configuration
-
-Copy `.env.example` to `.env` to override `VITE_API_BASE_URL`, which defaults
-to `http://localhost:8081`.
 
 ## Configuration
 

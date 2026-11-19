@@ -1,5 +1,9 @@
 # BeautyScale backend
 
+> Part of the [BeautyScale Brand Order Requests](../README.md) submission.
+> The root README covers running the whole stack, the design choices and the
+> shortcuts; this one is the backend reference.
+
 Go API for the Brand Order Requests workflow: chi, pgx/v5, sqlc, Atlas,
 PostgreSQL. Multi-tenant — every request is scoped by the `X-Workspace-ID`
 header, and every tenant-owned query carries `workspace_id`.
@@ -60,6 +64,27 @@ Backend server listening on http://localhost:8081 (development)
 ```
 
 `make help` lists every target. `make check` runs gofmt, vet, build and tests.
+
+## Tests
+
+```bash
+go test ./...                                    # everything
+go test ./internal/modules/orderrequest/ -v      # the accept flow
+```
+
+The integration tests need a reachable PostgreSQL: they read
+`TEST_DATABASE_URL`, falling back to `DATABASE_URL`, and skip themselves when
+neither is set, so `go test ./...` still passes on a machine without a
+database. Most of them run inside a transaction that is rolled back,
+so the suite leaves no rows behind.
+
+The concurrency tests are the exception — they open real parallel transactions
+through a `pgxpool`, because an in-process fake would not exercise the row
+locks that make the accept correct. `TestConcurrentAcceptsProduceExactlyOneOrder`
+fires eight simultaneous accepts and asserts one `200`, seven `409`, exactly
+one order and a single stock deduction.
+
+The repository root README lists the tests that cover each risky behaviour.
 
 ## API
 

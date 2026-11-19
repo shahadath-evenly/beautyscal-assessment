@@ -93,6 +93,11 @@ solely from that header, which it validates.
 make test                # the whole backend suite
 ```
 
+The integration tests read `TEST_DATABASE_URL`, falling back to
+`DATABASE_URL`, and skip themselves when neither is set. Point them at a local
+PostgreSQL rather than a remote one — see the note about the seed under
+shortcuts.
+
 The tests that cover the risky parts, all in
 `backend/internal/modules/orderrequest/`:
 
@@ -180,6 +185,11 @@ exact SQL behind the accept.
 - **The seed's workspace IDs are database-generated**, so the frontend needs a
   copy-paste step after seeding. Deterministic UUIDv5 from the slug would let
   both sides agree without it.
+- **The seed looks products up one at a time.** Against a local database that
+  is instant, but over a remote one the 344 round trips push the two
+  idempotency tests past their 30-second deadline. Batching the lookup into a
+  single `WHERE name = ANY($1)` would fix it; the seed is a developer tool, so
+  it was not where I spent the time.
 - **Mixed-currency requests are blocked rather than supported.** Grouping
   totals per currency is the better product answer, but one currency per
   request keeps a single total meaningful, and a check constraint for it would
