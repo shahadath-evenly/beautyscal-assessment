@@ -10,9 +10,10 @@ read or mutate another's data.
 
 | | |
 | --- | --- |
+| **Live demo** | **https://beauty-scale.netlify.app** |
+| **Live API** | https://beauty-scale-backend-production.up.railway.app/health |
 | **Backend** | Go 1.26, chi, pgx/v5, sqlc, Atlas, PostgreSQL 17 |
 | **Frontend** | React 19, Vite, TypeScript, TanStack Query, React Router |
-| **Live API** | https://beauty-scale-backend-production.up.railway.app/health |
 
 - [`backend/`](backend/) — the API. [Its README](backend/README.md) documents
   every endpoint, the schema, the accept transaction and the migrations.
@@ -74,7 +75,8 @@ npm run dev              # http://localhost:5173
 
 ## Using it
 
-Open http://localhost:5173.
+Open http://localhost:5173, or the deployed client at
+https://beauty-scale.netlify.app.
 
 1. **Buyer** — pick a workspace in the header, browse or search the catalogue,
    set quantities, add them to the request, enter a name and email, submit.
@@ -200,6 +202,11 @@ exact SQL behind the accept.
   records the trade-off.
 - **No observability.** There is structured logging via `log/slog` and a
   `/health` endpoint, but no metrics, tracing or error reporting.
+- **CORS is wide open on the deployment** (`CORS_ALLOWED_ORIGINS=*`), so the
+  Netlify client can reach the Railway API without a per-environment origin
+  list. The API carries no credentials or cookies, so this exposes nothing a
+  reader could not request directly — but it should be the client origin and
+  nothing else.
 
 ## What I would do next
 
@@ -219,18 +226,33 @@ exact SQL behind the accept.
 
 ## Deployment
 
-The API is deployed on Railway against a Neon PostgreSQL database:
+Both halves are deployed, and the demo link is the place to start:
 
-```
-https://beauty-scale-backend-production.up.railway.app
-```
+| | |
+| --- | --- |
+| Client | https://beauty-scale.netlify.app — Netlify, static build |
+| API | https://beauty-scale-backend-production.up.railway.app — Railway, from `backend/Dockerfile` |
+| Database | Neon, serverless PostgreSQL 18 in `ap-southeast-1` |
 
 ```bash
 curl https://beauty-scale-backend-production.up.railway.app/health
 ```
 
-The server reads `PORT` when the platform injects one and falls back to
-`HTTP_PORT`, then `8081`, so the same image runs locally and on Railway.
+Open the demo, pick a workspace in the header, submit a request on the Buyer
+page, then accept it on the Sales page. Ten seeded brands are available in the
+switcher, each with a catalogue of 30 to 50 products.
+
+Two notes on how it is wired:
+
+- **The API reads `PORT` when the platform injects one**, falling back to
+  `HTTP_PORT` and then `8081`, so the same image runs locally and on Railway
+  without an override.
+- **`CORS_ALLOWED_ORIGINS` is `*` on the deployment**, which is what lets the
+  Netlify origin call the Railway API. For anything beyond a demo it would be
+  the client origin and nothing else.
+- **The client is a static build**, so `VITE_API_BASE_URL` and
+  `VITE_WORKSPACES` are inlined at build time and set in Netlify's own
+  environment, not read at runtime.
 
 ## Repository layout
 
