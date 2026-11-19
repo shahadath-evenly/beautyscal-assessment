@@ -11,6 +11,12 @@ variable "database_url" {
   description = "Target database. Taken from DATABASE_URL (see .env)."
 }
 
+variable "revisions_schema" {
+  type        = string
+  default     = getenv("ATLAS_REVISIONS_SCHEMA")
+  description = "Schema holding Atlas's own revisions table."
+}
+
 variable "dev_url" {
   type        = string
   default     = getenv("ATLAS_DEV_URL")
@@ -18,6 +24,11 @@ variable "dev_url" {
 }
 
 locals {
+  # Atlas's default is a schema of its own. Some managed providers (Neon among
+  # them) trip over creating it, so the schema is configurable and those
+  # targets set ATLAS_REVISIONS_SCHEMA=public instead.
+  revisions_schema = var.revisions_schema != "" ? var.revisions_schema : "atlas_schema_revisions"
+
   # Falls back to a conventional local scratch database so the common case
   # needs no extra environment variable.
   dev_url = var.dev_url != "" ? var.dev_url : "postgres://localhost:5432/bscale_atlas_dev?sslmode=disable"
@@ -28,7 +39,8 @@ env "local" {
   dev = local.dev_url
 
   migration {
-    dir = "file://db/migrations"
+    dir              = "file://db/migrations"
+    revisions_schema = local.revisions_schema
   }
 }
 
@@ -37,6 +49,7 @@ env "ci" {
   dev = local.dev_url
 
   migration {
-    dir = "file://db/migrations"
+    dir              = "file://db/migrations"
+    revisions_schema = local.revisions_schema
   }
 }
