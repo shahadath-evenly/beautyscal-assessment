@@ -2,7 +2,9 @@ package seed_test
 
 import (
 	"context"
+	"errors"
 	"os"
+	"regexp"
 	"testing"
 	"time"
 
@@ -204,25 +206,57 @@ func TestSeedRefreshRestoresCatalogueValues(t *testing.T) {
 	}
 }
 
+// The demo data is a contract: the assessment asks for a realistic
+// catalogue, and several app behaviours depend on its shape. Pagination is
+// only worth demonstrating with more rows than one page holds, and a request
+// can only total correctly if the workspace it came from is single currency.
 func TestDemoDataShape(t *testing.T) {
-	if len(seed.Demo) != 2 {
-		t.Fatalf("Demo has %d workspaces, want 2", len(seed.Demo))
+	if len(seed.Demo) < 10 {
+		t.Fatalf("Demo has %d workspaces, want at least 10", len(seed.Demo))
 	}
+
+	// Letters, digits and single spaces. No accents, punctuation or symbols:
+	// a name has to survive a URL, a CSV export and a terminal unescaped, and
+	// search must behave the same for everyone typing it.
+	plain := regexp.MustCompile(`^[A-Za-z0-9]+( [A-Za-z0-9]+)*$`)
+	slugShape := regexp.MustCompile(`^[a-z0-9]+(-[a-z0-9]+)*$`)
 
 	slugs := map[string]bool{}
 	for _, ws := range seed.Demo {
 		if ws.Slug == "" || ws.Name == "" {
 			t.Errorf("workspace %+v has an empty name or slug", ws)
 		}
+		if !plain.MatchString(ws.Name) {
+			t.Errorf("workspace name %q is not plain letters, digits and spaces", ws.Name)
+		}
+		// The database enforces this too; failing here names the culprit.
+		if !slugShape.MatchString(ws.Slug) {
+			t.Errorf("slug %q does not match the shape the schema requires", ws.Slug)
+		}
 		if slugs[ws.Slug] {
 			t.Errorf("duplicate slug %q", ws.Slug)
 		}
 		slugs[ws.Slug] = true
 
-		if n := len(ws.Products); n < 3 || n > 5 {
-			t.Errorf("%s has %d products, want between 3 and 5", ws.Slug, n)
+		if n := len(ws.Products); n < 30 || n > 50 {
+			t.Errorf("%s has %d products, want between 30 and 50", ws.Slug, n)
 		}
+
+		names := map[string]bool{}
+		currencies := map[string]bool{}
 		for _, p := range ws.Products {
+			if !plain.MatchString(p.Name) {
+				t.Errorf("%s: product name %q is not plain letters, digits and spaces",
+					ws.Slug, p.Name)
+			}
+			// The seed matches products by (workspace, name), so a duplicate
+			// name would make the second one silently unreachable.
+			if names[p.Name] {
+				t.Errorf("%s: duplicate product name %q", ws.Slug, p.Name)
+			}
+			names[p.Name] = true
+			currencies[p.Currency] = true
+
 			if len(p.Currency) != 3 || p.Currency != upper(p.Currency) {
 				t.Errorf("%s: product %q has currency %q, want three uppercase letters",
 					ws.Slug, p.Name, p.Currency)
@@ -231,11 +265,30 @@ func TestDemoDataShape(t *testing.T) {
 				t.Errorf("%s: product %q has stock %d, want a positive value",
 					ws.Slug, p.Name, p.Stock)
 			}
+			if _, err := decimalPrice(p.Price); err != nil {
+				t.Errorf("%s: product %q has price %q: %v", ws.Slug, p.Name, p.Price, err)
+			}
+		}
+
+		// A mixed-currency workspace would let a buyer build a basket the
+		// service has to reject, which is not what a demo should offer.
+		if len(currencies) != 1 {
+			t.Errorf("%s spans %d currencies, want exactly 1", ws.Slug, len(currencies))
 		}
 	}
 }
 
-// upper uppercases a currency code, used to assert the demo data shape.
+// decimalPrice checks a price is a plain decimal with two places, which is
+// what NUMERIC(12,2) stores without rounding.
+func decimalPrice(s string) (string, error) {
+	if !regexp.MustCompile(`^[0-9]+\.[0-9]{2}$`).MatchString(s) {
+		return "", errNotTwoPlaceDecimal
+	}
+	return s, nil
+}
+
+var errNotTwoPlaceDecimal = errors.New("not a decimal with two places")
+
 func upper(s string) string {
 	out := []rune(s)
 	for i, r := range out {
