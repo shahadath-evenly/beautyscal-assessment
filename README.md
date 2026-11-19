@@ -52,6 +52,52 @@ Backend server listening on http://localhost:8081 (development)
 
 `make help` lists every target. `make check` runs gofmt, vet, build and tests.
 
+## Demo data
+
+```bash
+make seed            # insert anything missing; safe to run repeatedly
+make seed-refresh    # also reset demo prices, currencies and stock
+```
+
+It prints the workspace IDs the frontend needs:
+
+```
+WORKSPACE         SLUG              ID                                    PRODUCTS  THIS RUN
+Lumière Paris     lumiere-paris     84395f84-e5e5-42ac-9460-dc3f34f9023d  5         5 created
+Coastal Botanics  coastal-botanics  647354ae-f8d2-4923-ac9d-b1eb21e6c229  4         4 created
+```
+
+Use one of those IDs as the `X-Workspace-ID` header, or pick the workspace in
+the UI.
+
+What it loads: two workspaces with stable slugs, five products for
+Lumière Paris in EUR and four for Coastal Botanics in USD. Each workspace uses
+a single currency, so a request total is meaningful without mixing. All of it
+is invented sample data; there is no real customer data anywhere.
+
+**Idempotency.** Workspaces are matched by their unique slug and products by
+`(workspace, name)`, so repeated runs never duplicate a row and workspace IDs
+stay stable. The whole seed runs in one transaction.
+
+A plain `make seed` deliberately **does not** overwrite the price or stock of a
+product that already exists, so re-seeding cannot quietly restore stock that a
+demo acceptance consumed. Use `make seed-refresh` when you do want the demo
+catalogue reset. The seed never writes order requests or orders, so it cannot
+interfere with the accept-flow tests.
+
+### Resetting the database
+
+```bash
+make db-reset CONFIRM=yes
+```
+
+**This destroys data.** It drops every table, re-applies the migrations and
+re-seeds. Two guards stand in the way: it refuses without `CONFIRM=yes`,
+printing the target `DATABASE_URL` first, and it refuses outright when
+`APP_ENV=production`. It is intended for local development only.
+
+To rebuild the schema without demo data, use `make migrate-fresh`.
+
 ## Migrations
 
 Versioned migrations live in `db/migrations/`, with `atlas.sum` recording a

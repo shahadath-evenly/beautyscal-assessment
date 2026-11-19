@@ -66,10 +66,15 @@ psql:
 api:
 	@$(LOAD_ENV); go run ./cmd/api
 
-## seed: run the seed command on the host, using DATABASE_URL from .env
+## seed: load demo workspaces and products (safe to run repeatedly)
 .PHONY: seed
 seed:
 	@$(LOAD_ENV); go run ./cmd/seed
+
+## seed-refresh: as seed, but also reset demo prices and stock to their defaults
+.PHONY: seed-refresh
+seed-refresh:
+	@$(LOAD_ENV); go run ./cmd/seed -refresh
 
 # --- Migrations (Atlas) ----------------------------------------------------
 # Every target loads .env, so DATABASE_URL comes from one place.
@@ -104,8 +109,28 @@ migrate-validate:
 ## migrate-fresh: DROP every table in DATABASE_URL and re-apply from scratch
 .PHONY: migrate-fresh
 migrate-fresh:
-	@$(LOAD_ENV); psql "$$DATABASE_URL" -v ON_ERROR_STOP=1 -q -c 'DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;'
+	@$(LOAD_ENV); psql "$$DATABASE_URL" -v ON_ERROR_STOP=1 -q -c \
+		'DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public; DROP SCHEMA IF EXISTS atlas_schema_revisions CASCADE;'
 	@$(LOAD_ENV); atlas migrate apply --env local
+
+## db-reset: DESTRUCTIVE. Drop every table, re-migrate and re-seed.
+##           Requires CONFIRM=yes and refuses to run when APP_ENV=production.
+.PHONY: db-reset
+db-reset:
+	@caller_env="$$APP_ENV"; $(LOAD_ENV); \
+	env_name="$${caller_env:-$$APP_ENV}"; \
+	if [[ "$$env_name" == "production" ]]; then \
+		echo "refusing: APP_ENV is production"; exit 1; \
+	fi; \
+	if [[ "$(CONFIRM)" != "yes" ]]; then \
+		echo "This DROPS every table in:"; \
+		echo "    $$DATABASE_URL"; \
+		echo "Re-run with: make db-reset CONFIRM=yes"; \
+		exit 1; \
+	fi; \
+	echo "resetting $$DATABASE_URL"
+	@$(MAKE) --no-print-directory migrate-fresh
+	@$(MAKE) --no-print-directory seed
 
 ## verify-schema: assert the tenancy, stock and uniqueness invariants hold
 .PHONY: verify-schema
