@@ -18,6 +18,8 @@ type Store interface {
 	Create(ctx context.Context, workspaceID uuid.UUID, params CreateParams) (Created, error)
 	List(ctx context.Context, workspaceID uuid.UUID, filter ListFilter) (Listed, error)
 	Get(ctx context.Context, workspaceID, requestID uuid.UUID) (sqlc.OrderRequest, []sqlc.OrderRequestItem, error)
+	Accept(ctx context.Context, workspaceID, requestID uuid.UUID) (Accepted, error)
+	Reject(ctx context.Context, workspaceID, requestID uuid.UUID) (sqlc.OrderRequest, []sqlc.OrderRequestItem, error)
 }
 
 // Service holds the order request rules.
@@ -82,6 +84,43 @@ func (s *Service) List(ctx context.Context, workspaceID uuid.UUID, params httpx.
 // Get returns one request with its lines and totals, or ErrNotFound.
 func (s *Service) Get(ctx context.Context, workspaceID, requestID uuid.UUID) (DetailResponse, error) {
 	request, items, err := s.store.Get(ctx, workspaceID, requestID)
+	if err != nil {
+		return DetailResponse{}, err
+	}
+	return toDetail(request, items)
+}
+
+// Accept reserves stock and creates the draft order for a request.
+//
+// The service adds no rules of its own here: the whole operation has to be
+// one transaction, so it lives in the repository where the transaction is.
+// Splitting the checks across layers would mean deciding outside the lock,
+// which is exactly the race this flow must not have.
+func (s *Service) Accept(ctx context.Context, workspaceID, requestID uuid.UUID) (AcceptResponse, error) {
+	accepted, err := s.store.Accept(ctx, workspaceID, requestID)
+	if err != nil {
+		return AcceptResponse{}, err
+	}
+
+	detail, err := toDetail(accepted.Request, accepted.Items)
+	if err != nil {
+		return AcceptResponse{}, err
+	}
+
+	return AcceptResponse{
+		Request: detail,
+		Order: OrderResponse{
+			ID:        accepted.Order.ID,
+			Status:    accepted.Order.Status,
+			CreatedAt: accepted.Order.CreatedAt,
+		},
+	}, nil
+}
+
+// Reject marks a new request rejected, without touching stock or creating an
+// order.
+func (s *Service) Reject(ctx context.Context, workspaceID, requestID uuid.UUID) (DetailResponse, error) {
+	request, items, err := s.store.Reject(ctx, workspaceID, requestID)
 	if err != nil {
 		return DetailResponse{}, err
 	}

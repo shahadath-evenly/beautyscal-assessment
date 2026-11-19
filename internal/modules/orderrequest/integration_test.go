@@ -111,6 +111,13 @@ func (f *fixture) createProduct(t *testing.T, ws sqlc.Workspace, name, price, cu
 
 func (f *fixture) do(t *testing.T, method, target, workspaceID, body string) *httptest.ResponseRecorder {
 	t.Helper()
+	return doRequest(t, f.router, method, target, workspaceID, body)
+}
+
+// doRequest issues one request through a router, as a workspace. Safe to call
+// from several goroutines: each call builds its own request and recorder.
+func doRequest(t *testing.T, router http.Handler, method, target, workspaceID, body string) *httptest.ResponseRecorder {
+	t.Helper()
 
 	var reader io.Reader
 	if body != "" {
@@ -125,7 +132,7 @@ func (f *fixture) do(t *testing.T, method, target, workspaceID, body string) *ht
 	}
 
 	res := httptest.NewRecorder()
-	f.router.ServeHTTP(res, req)
+	router.ServeHTTP(res, req)
 	return res
 }
 

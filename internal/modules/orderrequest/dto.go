@@ -66,3 +66,17 @@ type DetailResponse struct {
 	Response
 	Items []ItemResponse `json:"items"`
 }
+
+// OrderResponse is the draft order created by accepting a request.
+type OrderResponse struct {
+	ID        uuid.UUID `json:"id"`
+	Status    string    `json:"status"`
+	CreatedAt time.Time `json:"createdAt"`
+}
+
+// AcceptResponse is returned by a successful acceptance: the request in its
+// new state, and the draft order the acceptance created.
+type AcceptResponse struct {
+	Request DetailResponse `json:"request"`
+	Order   OrderResponse  `json:"order"`
+}

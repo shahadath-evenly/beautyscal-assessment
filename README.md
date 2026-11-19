@@ -179,7 +179,58 @@ does not exist or belongs to another workspace.
                    "currency":"EUR"}]}}
 ```
 
-Accept and reject arrive in the next phase.
+### `POST /api/order-requests/{id}/accept`
+
+Reserves stock and creates the draft order. Returns `200` with the updated
+request and the order:
+
+```json
+{"data":{"request":{"id":"…","status":"accepted","total":"225.90","currency":"EUR","items":[…]},
+         "order":{"id":"…","status":"draft","createdAt":"…"}}}
+```
+
+| Condition | Response |
+| --- | --- |
+| Request is not `new` | `409 conflict` naming the current status |
+| Not enough stock | `409 insufficient_stock`, with the short products, requested and available |
+| Unknown request, or another workspace's | `404 not_found` |
+
+**This is the operation that must be safe under concurrent clicks**, and the
+whole of it happens inside one PostgreSQL transaction:
+
+1. `SELECT ... FOR UPDATE` on the request, scoped by workspace and ID. Two
+   concurrent accepts serialise here: the second blocks until the first
+   commits, then sees `accepted`.
+2. The status must be `new`.
+3. Quantities are aggregated by product, so a product listed twice is locked
+   and decremented once with its total.
+4. The product rows are locked in **ascending ID order**. Deterministic lock
+   ordering is what stops two transactions each holding the row the other
+   wants.
+5. Every product is checked for sufficient stock **before anything is
+   written**, so a shortage on the last line cannot leave earlier lines
+   decremented.
+6. Stock is decremented, with the guard repeated in the `UPDATE`'s `WHERE`
+   clause, so an oversell updates no row rather than writing a negative.
+7. Exactly one draft order is created. The unique constraint on
+   `(workspace_id, order_request_id)` is the database-level backstop.
+8. The order lines are built from the request's own snapshots inside the
+   database, so the quoted prices cannot drift in transit.
+9. The request moves to `accepted`, guarded on `status = 'new'`.
+
+Any failure returns before the commit, so the transaction unwinds: no stock
+change, no order and no status change survives. There is **no in-memory lock
+anywhere** — correctness comes from the database, which is the only thing that
+still holds with more than one API process running.
+
+### `POST /api/order-requests/{id}/reject`
+
+Marks a `new` request rejected. It never changes stock and never creates an
+order. Rejecting anything other than a `new` request is a `409`, and a
+rejected request can never afterwards be accepted.
+
+The request row is locked first, so the decision is made against a stable
+status rather than one that a concurrent accept might be changing.
 
 ## Tenancy: the workspace middleware
 

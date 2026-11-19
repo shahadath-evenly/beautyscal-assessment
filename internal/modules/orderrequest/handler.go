@@ -85,6 +85,82 @@ func (h *Handler) writeCreateError(w http.ResponseWriter, r *http.Request, works
 	httpx.Internal(w)
 }
 
+// Accept handles POST /api/order-requests/{requestId}/accept.
+//
+// Safe under concurrent clicks: the work happens in one transaction that
+// locks the request row, so a second attempt either waits and then conflicts,
+// or is rejected by the unique constraint on the order.
+func (h *Handler) Accept(w http.ResponseWriter, r *http.Request) {
+	requestID, ok := h.requestID(w, r)
+	if !ok {
+		return
+	}
+	workspaceID := appmw.MustWorkspaceID(r.Context())
+
+	accepted, err := h.service.Accept(r.Context(), workspaceID, requestID)
+	if err != nil {
+		h.writeTransitionError(w, r, workspaceID, requestID, "accept", err)
+		return
+	}
+
+	httpx.Data(w, http.StatusOK, accepted)
+}
+
+// Reject handles POST /api/order-requests/{requestId}/reject.
+func (h *Handler) Reject(w http.ResponseWriter, r *http.Request) {
+	requestID, ok := h.requestID(w, r)
+	if !ok {
+		return
+	}
+	workspaceID := appmw.MustWorkspaceID(r.Context())
+
+	rejected, err := h.service.Reject(r.Context(), workspaceID, requestID)
+	if err != nil {
+		h.writeTransitionError(w, r, workspaceID, requestID, "reject", err)
+		return
+	}
+
+	httpx.Data(w, http.StatusOK, rejected)
+}
+
+// requestID parses the path parameter, answering 400 when it is malformed.
+func (h *Handler) requestID(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
+	id, err := uuid.Parse(urlParam(r, "requestId"))
+	if err != nil {
+		httpx.BadRequest(w, "The order request ID must be a valid UUID.")
+		return uuid.Nil, false
+	}
+	return id, true
+}
+
+// writeTransitionError maps an accept or reject failure to a response.
+func (h *Handler) writeTransitionError(w http.ResponseWriter, r *http.Request, workspaceID, requestID uuid.UUID, action string, err error) {
+	if errors.Is(err, ErrNotFound) {
+		// Also the answer for another workspace's request.
+		httpx.NotFound(w, "The requested order request was not found.")
+		return
+	}
+
+	var conflict *StatusConflictError
+	if errors.As(err, &conflict) {
+		httpx.Conflict(w, conflict.Message())
+		return
+	}
+
+	var short *InsufficientStockError
+	if errors.As(err, &short) {
+		// 409: the request is valid, but the catalogue cannot supply it right
+		// now. No stock was taken, because the transaction rolled back.
+		httpx.Error(w, http.StatusConflict, "insufficient_stock",
+			"There is not enough stock to accept this request.", short.Products)
+		return
+	}
+
+	h.logger.ErrorContext(r.Context(), action+" order request failed",
+		"error", err, "workspaceId", workspaceID, "requestId", requestID)
+	httpx.Internal(w)
+}
+
 // List handles GET /api/order-requests.
 //
 //	page    defaults to 1
@@ -122,9 +198,8 @@ func (h *Handler) List(w http.ResponseWriter, r *http.Request) {
 
 // Get handles GET /api/order-requests/{requestId}.
 func (h *Handler) Get(w http.ResponseWriter, r *http.Request) {
-	requestID, err := uuid.Parse(urlParam(r, "requestId"))
-	if err != nil {
-		httpx.BadRequest(w, "The order request ID must be a valid UUID.")
+	requestID, ok := h.requestID(w, r)
+	if !ok {
 		return
 	}
 
