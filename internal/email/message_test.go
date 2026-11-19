@@ -17,6 +17,7 @@ func acceptedFixture() email.AcceptedRequest {
 		BrandName:  "Lumière Paris",
 		Currency:   "EUR",
 		Total:      "225.90",
+
 		Lines: []email.Line{
 			{ProductName: "Rose Absolute Serum 30ml", Quantity: 2, UnitPrice: "68.00", LineTotal: "136.00"},
 			{ProductName: "Night Repair Cream 50ml", Quantity: 1, UnitPrice: "89.90", LineTotal: "89.90"},
