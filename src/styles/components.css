@@ -489,12 +489,6 @@
   gap: var(--space-2);
 }
 
-.pagination__size .select {
-  width: auto;
-  height: 30px;
-  padding-right: var(--space-2);
-}
-
 .pagination__size-label {
   color: var(--color-text-muted);
   font-size: 13px;
@@ -531,7 +525,8 @@
 }
 
 .workspace-selector .select,
-.workspace-selector .input {
+.workspace-selector .input,
+.workspace-selector .combobox__control {
   height: 32px;
 }
 
@@ -837,5 +832,231 @@
 
   .row-actions {
     justify-content: flex-start;
+  }
+}
+
+/* Combobox -----------------------------------------------------------------
+   The searchable dropdown used everywhere in place of a native select. The
+   panel is a floating surface, so it needs its own stacking context; the
+   control itself matches .input exactly, so a row of mixed controls still
+   lines up. */
+
+.combobox {
+  position: relative;
+  width: 100%;
+}
+
+.combobox__control {
+  display: flex;
+  align-items: center;
+  height: var(--control-height);
+  padding-right: var(--space-1);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.combobox__control:hover {
+  border-color: #d4d4d4;
+}
+
+.combobox:focus-within .combobox__control {
+  border-color: var(--color-brand);
+  box-shadow: var(--focus-ring);
+}
+
+.combobox--invalid .combobox__control {
+  border-color: var(--color-danger);
+}
+
+.combobox--disabled .combobox__control {
+  background: var(--color-background);
+  cursor: not-allowed;
+}
+
+.combobox__input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0 var(--space-3);
+  background: none;
+  border: none;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 14px;
+  text-overflow: ellipsis;
+}
+
+.combobox__input:focus {
+  outline: none;
+}
+
+.combobox__input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.combobox__input:disabled {
+  cursor: not-allowed;
+}
+
+/* The inline completion, which the browser renders as a normal selection. */
+.combobox__input::selection {
+  background: var(--color-brand-soft);
+  color: var(--color-text);
+}
+
+.combobox__clear,
+.combobox__toggle {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.combobox__clear svg,
+.combobox__toggle svg {
+  width: 16px;
+  height: 16px;
+}
+
+.combobox__clear:hover,
+.combobox__toggle:hover {
+  background: var(--color-brand-tint);
+  color: var(--color-brand);
+}
+
+.combobox__toggle svg {
+  transition: transform 140ms ease;
+}
+
+.combobox--open .combobox__toggle svg {
+  transform: rotate(180deg);
+}
+
+.combobox--open .combobox__toggle {
+  color: var(--color-brand);
+}
+
+.combobox__list {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + var(--space-1));
+  right: 0;
+  left: 0;
+  max-height: 264px;
+  margin: 0;
+  padding: var(--space-1);
+  overflow-y: auto;
+  list-style: none;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 4px 6px -2px rgb(23 23 23 / 6%), 0 12px 20px -6px rgb(23 23 23 / 12%);
+}
+
+.combobox__option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.combobox__option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.combobox__option-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.combobox__option-hint {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* One highlight only: the active row is wherever the keyboard or the pointer
+   last was, so they can never disagree. */
+.combobox__option--active {
+  background: var(--color-brand-tint);
+}
+
+.combobox__option--selected {
+  color: var(--color-brand-hover);
+  font-weight: 600;
+}
+
+.combobox__option--selected.combobox__option--active {
+  background: var(--color-brand-soft);
+}
+
+.combobox__check {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--color-brand);
+}
+
+.combobox__mark {
+  padding: 0 1px;
+  background: var(--color-brand-soft);
+  border-radius: 3px;
+  color: var(--color-brand-hover);
+  font-weight: 600;
+}
+
+.combobox__empty {
+  padding: var(--space-3);
+  color: var(--color-text-muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+/* Opens upward, for a control sitting near the bottom of the page. */
+.combobox--top .combobox__list {
+  top: auto;
+  bottom: calc(100% + var(--space-1));
+}
+
+/* Compact variant, for the page-size control that sits in a row of small
+   buttons. */
+.combobox--sm {
+  width: auto;
+  min-width: 84px;
+}
+
+.combobox--sm .combobox__control {
+  height: 32px;
+}
+
+.combobox--sm .combobox__input {
+  padding: 0 var(--space-2);
+  font-size: 13px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .combobox__control,
+  .combobox__toggle svg {
+    transition: none;
   }
 }

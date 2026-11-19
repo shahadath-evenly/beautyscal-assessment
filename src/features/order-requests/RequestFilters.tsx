@@ -1,4 +1,4 @@
-import { SearchInput, Select } from "../../components/common";
+import { Combobox, SearchInput } from "../../components/common";
 import type { OrderRequestStatus } from "../../types/orderRequest";
 
 /** "" is All; the others are the statuses the API accepts. */
@@ -40,18 +40,22 @@ export function RequestFilters({
         onChange={onSearchChange}
       />
 
-      <label className="filters__field">
-        <span className="filters__label">Status</span>
-        <Select
+      <div className="filters__field">
+        <label className="filters__label" htmlFor="request-status">
+          Status
+        </label>
+        <Combobox
+          id="request-status"
           value={status}
-          onChange={(event) => onStatusChange(event.target.value as StatusFilter)}
+          onChange={(next) => onStatusChange(next as StatusFilter)}
           options={STATUS_OPTIONS.map((option) => ({
             value: option.value,
             label: option.label,
           }))}
-          aria-label="Filter by status"
+          placeholder="All statuses"
+          emptyMessage="No matching status"
         />
-      </label>
+      </div>
     </div>
   );
 }

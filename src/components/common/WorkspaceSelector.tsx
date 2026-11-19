@@ -3,8 +3,8 @@ import { useState } from "react";
 import { useWorkspace } from "../../hooks/useWorkspace";
 import { workspacesService } from "../../service";
 import { Button } from "./Button";
+import { Combobox } from "./Combobox";
 import { Input } from "./Input";
-import { Select } from "./Select";
 
 /**
  * Chooses which workspace the app acts as.
@@ -23,22 +23,30 @@ export function WorkspaceSelector() {
 
   if (workspaces.length > 0) {
     return (
-      <label className="workspace-selector">
-        <span className="workspace-selector__label">
+      <div className="workspace-selector">
+        <label className="workspace-selector__label" htmlFor="workspace-combobox">
           Workspace
           <span className="workspace-selector__hint"> · demo selector, not a login</span>
-        </span>
-        <Select
+        </label>
+        <Combobox
+          id="workspace-combobox"
           value={workspace?.id ?? ""}
           placeholder="Choose a workspace"
           aria-label="Active workspace (demo selector, not authentication)"
-          options={workspaces.map((option) => ({ value: option.id, label: option.name }))}
-          onChange={(event) => {
-            const next = workspaces.find((option) => option.id === event.target.value);
-            if (next) selectWorkspace(next);
+          emptyMessage="No workspace matches"
+          // The ID is searchable too, so an ID pasted from `make seed` finds
+          // its workspace without the name having to be known.
+          options={workspaces.map((option) => ({
+            value: option.id,
+            label: option.name,
+            hint: option.id,
+          }))}
+          onChange={(next) => {
+            const chosen = workspaces.find((option) => option.id === next);
+            if (chosen) selectWorkspace(chosen);
           }}
         />
-      </label>
+      </div>
     );
   }
 

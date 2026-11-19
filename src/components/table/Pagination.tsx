@@ -1,4 +1,4 @@
-import { Button, Select } from "../common";
+import { Button, Combobox } from "../common";
 import { PAGE_SIZE_OPTIONS } from "../../service";
 import type { PaginationState } from "./types";
 
@@ -23,18 +23,23 @@ export function Pagination({ page, limit, total, onPageChange, onLimitChange }: 
 
       <div className="pagination__controls">
         {onLimitChange && (
-          <label className="pagination__size">
-            <span className="pagination__size-label">Per page</span>
-            <Select
+          <div className="pagination__size">
+            <label className="pagination__size-label" htmlFor="page-size">
+              Per page
+            </label>
+            <Combobox
+              id="page-size"
+              size="sm"
+              placement="top"
               value={String(limit)}
-              onChange={(event) => onLimitChange(Number(event.target.value))}
+              onChange={(next) => onLimitChange(Number(next))}
               options={PAGE_SIZE_OPTIONS.map((size) => ({
                 value: String(size),
                 label: String(size),
               }))}
-              aria-label="Results per page"
+              emptyMessage="No such size"
             />
-          </label>
+          </div>
         )}
 
         <div className="pagination__pages">

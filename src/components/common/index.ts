@@ -3,6 +3,8 @@ export type { AlertTone } from "./Alert";
 export { Button } from "./Button";
 export type { ButtonProps, ButtonSize, ButtonVariant } from "./Button";
 export { Card } from "./Card";
+export { Combobox } from "./Combobox";
+export type { ComboboxOption, ComboboxProps } from "./Combobox";
 export { ConfirmDialog } from "./ConfirmDialog";
 export type { ConfirmDialogProps } from "./ConfirmDialog";
 export { EmptyState } from "./EmptyState";
