@@ -15,6 +15,7 @@ import (
 	"github.com/real-musafir/b-scale/backend/internal/config"
 	"github.com/real-musafir/b-scale/backend/internal/db"
 	"github.com/real-musafir/b-scale/backend/internal/db/sqlc"
+	"github.com/real-musafir/b-scale/backend/internal/modules/product"
 	"github.com/real-musafir/b-scale/backend/internal/platform/logging"
 	"github.com/real-musafir/b-scale/backend/internal/platform/server"
 	"github.com/real-musafir/b-scale/backend/internal/platform/startup"
@@ -65,11 +66,19 @@ func run() error {
 	// by the feature services. Transactions get their own via sqlc.New(tx).
 	queries := sqlc.New(pool)
 
+	// Each module is wired explicitly: repository, then service, then
+	// handler. No container, no reflection, no hidden globals.
+	productHandler := product.NewHandler(
+		product.NewService(product.NewRepository(queries)),
+		logger,
+	)
+
 	router := server.NewRouter(server.Deps{
 		Logger:             logger,
 		Pool:               pool,
 		Validator:          validate.New(),
 		Workspaces:         queries,
+		Products:           productHandler,
 		CORSAllowedOrigins: cfg.CORSAllowedOrigins,
 		RequestTimeout:     cfg.RequestTimeout,
 		MaxBodyBytes:       cfg.MaxBodyBytes,

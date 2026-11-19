@@ -56,6 +56,66 @@ Backend server listening on http://localhost:8081 (development)
 
 `make help` lists every target. `make check` runs gofmt, vet, build and tests.
 
+## API
+
+All routes are under `/api` and require the `X-Workspace-ID` header.
+
+### `GET /api/products`
+
+List the workspace's catalogue.
+
+| Parameter | Default | Notes |
+| --- | --- | --- |
+| `page` | `1` | Must be 1 or greater |
+| `limit` | `10` | 1 to 100 |
+| `search` | — | Case-insensitive match on the product name |
+
+```bash
+WS=84395f84-e5e5-42ac-9460-dc3f34f9023d
+
+curl -H "X-Workspace-ID: $WS" localhost:8081/api/products
+curl -H "X-Workspace-ID: $WS" "localhost:8081/api/products?search=serum"
+curl -H "X-Workspace-ID: $WS" "localhost:8081/api/products?page=2&limit=5"
+```
+
+```json
+{
+  "data": [
+    {
+      "id": "de09bed3-b265-47d9-80ec-5c6af378fb30",
+      "name": "Night Repair Cream 50ml",
+      "price": "89.90",
+      "currency": "EUR",
+      "stock": 65,
+      "createdAt": "2026-11-19T14:33:22.646383+06:00",
+      "updatedAt": "2026-11-19T14:33:22.646383+06:00"
+    }
+  ],
+  "meta": { "page": 1, "limit": 10, "total": 5, "totalPages": 1 }
+}
+```
+
+`GET /api/products/{id}` returns a single product, or `404` when it does not
+exist **or belongs to another workspace** — the two are deliberately
+indistinguishable.
+
+Both search and pagination execute in PostgreSQL. The count query applies the
+identical filter, so `total` can never disagree with the rows. Ordering is
+`created_at DESC, id DESC`, which keeps pages from overlapping.
+
+An unusable `page` or `limit` is a `400` naming the field, rather than a
+silent fallback:
+
+```json
+{"error":{"code":"bad_request","message":"One or more query parameters are invalid.",
+          "details":[{"field":"limit","message":"must be 100 or fewer"}]}}
+```
+
+**Money is a string**, never a JSON number: most clients parse JSON numbers as
+doubles, which cannot represent every decimal amount exactly. Amounts are
+`NUMERIC(12,2)` in the database and fixed-point strings on the wire, converted
+through `big.Int` with no floating point anywhere.
+
 ## Tenancy: the workspace middleware
 
 Every route under `/api` is scoped to one workspace, resolved once by

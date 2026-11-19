@@ -12,6 +12,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	appmw "github.com/real-musafir/b-scale/backend/internal/middleware"
+	"github.com/real-musafir/b-scale/backend/internal/modules/product"
 	"github.com/real-musafir/b-scale/backend/internal/platform/httpx"
 	"github.com/real-musafir/b-scale/backend/internal/platform/validate"
 )
@@ -23,7 +24,10 @@ type Deps struct {
 	Pool      *pgxpool.Pool
 	Validator *validate.Validator
 	// Workspaces verifies the tenant behind X-Workspace-ID.
-	Workspaces         appmw.WorkspaceVerifier
+	Workspaces appmw.WorkspaceVerifier
+	// Products serves the catalogue. Nil leaves the routes unmounted, which
+	// keeps router tests independent of the feature modules.
+	Products           *product.Handler
 	CORSAllowedOrigins []string
 	RequestTimeout     time.Duration
 	// MaxBodyBytes caps request bodies; zero applies the default.
@@ -57,9 +61,11 @@ func NewRouter(deps Deps) http.Handler {
 		// can forget to.
 		api.Use(appmw.RequireWorkspace(deps.Workspaces, deps.Logger))
 
-		// Feature routes are mounted here in later phases:
-		//   api.Mount("/products", productRouter)
-		//   api.Mount("/order-requests", orderRequestRouter)
+		if deps.Products != nil {
+			api.Mount("/products", product.NewRouter(deps.Products))
+		}
+
+		// Order request routes are mounted here in a later phase.
 
 		// A catch-all registered as a route, not as NotFound: chi answers an
 		// unmatched path from the parent mux, which would skip this group's
