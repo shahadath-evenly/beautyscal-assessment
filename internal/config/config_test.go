@@ -86,6 +86,10 @@ func TestLoadRequiresDatabaseURL(t *testing.T) {
 func TestLoadAppliesDefaults(t *testing.T) {
 	t.Setenv("ENV_FILE", filepath.Join(t.TempDir(), "absent"))
 	t.Setenv("DATABASE_URL", "postgres://user@localhost:5432/db")
+	// Blank reads as unset, so the defaults are exercised even when the shell
+	// running the tests happens to export a port.
+	t.Setenv("PORT", "")
+	t.Setenv("HTTP_PORT", "")
 
 	cfg, err := Load()
 	if err != nil {
@@ -146,5 +150,43 @@ func TestLoadCanDisableExpiry(t *testing.T) {
 	}
 	if cfg.Expiry.Enabled {
 		t.Error("Expiry.Enabled = true, want false")
+	}
+}
+
+// A platform that injects PORT must win over the project's own HTTP_PORT:
+// Railway routes to the port it assigned, so binding HTTP_PORT instead leaves
+// the service unreachable.
+func TestLoadPrefersInjectedPortOverHTTPPort(t *testing.T) {
+	t.Setenv("ENV_FILE", filepath.Join(t.TempDir(), "absent"))
+	t.Setenv("DATABASE_URL", "postgres://user@localhost:5432/db")
+	t.Setenv("HTTP_PORT", "8081")
+	t.Setenv("PORT", "3000")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.HTTPPort != "3000" {
+		t.Errorf("HTTPPort = %q, want 3000", cfg.HTTPPort)
+	}
+	if cfg.Addr() != ":3000" {
+		t.Errorf("Addr() = %q, want :3000", cfg.Addr())
+	}
+}
+
+// Without PORT, HTTP_PORT still decides, which is what docker-compose and the
+// local Makefile rely on.
+func TestLoadFallsBackToHTTPPort(t *testing.T) {
+	t.Setenv("ENV_FILE", filepath.Join(t.TempDir(), "absent"))
+	t.Setenv("DATABASE_URL", "postgres://user@localhost:5432/db")
+	t.Setenv("PORT", "")
+	t.Setenv("HTTP_PORT", "8082")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.HTTPPort != "8082" {
+		t.Errorf("HTTPPort = %q, want 8082", cfg.HTTPPort)
 	}
 }

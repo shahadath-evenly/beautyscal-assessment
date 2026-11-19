@@ -18,7 +18,9 @@ import (
 type Config struct {
 	// AppEnv is a free-form environment label ("local", "docker", "production").
 	AppEnv string
-	// HTTPPort is the port the API listens on.
+	// HTTPPort is the port the API listens on. It comes from PORT when the
+	// platform injects one (Railway, Heroku, Cloud Run and friends all do),
+	// otherwise from HTTP_PORT, otherwise 8081.
 	HTTPPort string
 	// DatabaseURL is the PostgreSQL connection string.
 	DatabaseURL string
@@ -142,7 +144,7 @@ func Load() (Config, error) {
 
 	cfg := Config{
 		AppEnv:             env("APP_ENV", "local"),
-		HTTPPort:           env("HTTP_PORT", "8081"),
+		HTTPPort:           envAny("8081", "PORT", "HTTP_PORT"),
 		DatabaseURL:        env("DATABASE_URL", ""),
 		LogLevel:           strings.ToLower(env("LOG_LEVEL", "info")),
 		LogFormat:          strings.ToLower(env("LOG_FORMAT", "text")),
@@ -272,7 +274,7 @@ func (c Config) validate() error {
 		return errors.New("config: DATABASE_URL is required")
 	}
 	if strings.TrimSpace(c.HTTPPort) == "" {
-		return errors.New("config: HTTP_PORT must not be empty")
+		return errors.New("config: PORT/HTTP_PORT must not be empty")
 	}
 	switch c.LogLevel {
 	case "debug", "info", "warn", "error":
@@ -313,6 +315,18 @@ func (c Config) Addr() string { return ":" + c.HTTPPort }
 func env(key, fallback string) string {
 	if v, ok := os.LookupEnv(key); ok && strings.TrimSpace(v) != "" {
 		return strings.TrimSpace(v)
+	}
+	return fallback
+}
+
+// envAny returns the first of keys that is set to a non-blank value, so a
+// platform-supplied variable can take precedence over the project's own
+// without either being mandatory. Order is caller-chosen and significant.
+func envAny(fallback string, keys ...string) string {
+	for _, key := range keys {
+		if v, ok := os.LookupEnv(key); ok && strings.TrimSpace(v) != "" {
+			return strings.TrimSpace(v)
+		}
 	}
 	return fallback
 }

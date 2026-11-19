@@ -38,10 +38,14 @@ COPY --from=builder /src/db /app/db
 USER app
 WORKDIR /app
 
+# Local default only. A platform that injects PORT (Railway, Cloud Run, Heroku)
+# overrides it, because the config reads PORT first and falls back to HTTP_PORT.
 ENV HTTP_PORT=8081
 EXPOSE 8081
 
+# The check resolves the port exactly the way the application does, so it
+# follows an injected PORT instead of probing a port nothing is listening on.
 HEALTHCHECK --interval=10s --timeout=3s --start-period=5s --retries=5 \
-  CMD wget -qO- "http://127.0.0.1:${HTTP_PORT}/health" >/dev/null 2>&1 || exit 1
+  CMD wget -qO- "http://127.0.0.1:${PORT:-${HTTP_PORT:-8081}}/health" >/dev/null 2>&1 || exit 1
 
 CMD ["api"]

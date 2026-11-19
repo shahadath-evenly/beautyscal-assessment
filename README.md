@@ -27,7 +27,8 @@ Compose. Real environment variables always take precedence over the file, so
 | --- | --- | --- |
 | `DATABASE_URL` | — (required) | PostgreSQL connection string |
 | `APP_ENV` | `local` | Environment name shown at startup |
-| `HTTP_PORT` | `8081` | Port the API listens on |
+| `PORT` | — | Port injected by the host (Railway, Cloud Run). Wins over `HTTP_PORT` |
+| `HTTP_PORT` | `8081` | Port the API listens on when `PORT` is unset |
 | `LOG_LEVEL` | `info` | `debug`, `info`, `warn`, `error` |
 | `LOG_FORMAT` | `text` | `text` for humans, `json` for log collectors |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | Comma-separated; `*` allows any origin |
