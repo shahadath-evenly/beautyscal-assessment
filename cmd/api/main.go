@@ -14,6 +14,7 @@ import (
 
 	"github.com/real-musafir/b-scale/backend/internal/config"
 	"github.com/real-musafir/b-scale/backend/internal/db"
+	"github.com/real-musafir/b-scale/backend/internal/db/sqlc"
 	"github.com/real-musafir/b-scale/backend/internal/platform/logging"
 	"github.com/real-musafir/b-scale/backend/internal/platform/server"
 	"github.com/real-musafir/b-scale/backend/internal/platform/startup"
@@ -60,17 +61,26 @@ func run() error {
 	report.DatabaseConnected()
 	logger.Debug("database pool ready", "maxConns", cfg.DBMaxConns)
 
+	// One Queries value over the pool, shared by the middleware and, later,
+	// by the feature services. Transactions get their own via sqlc.New(tx).
+	queries := sqlc.New(pool)
+
 	router := server.NewRouter(server.Deps{
 		Logger:             logger,
 		Pool:               pool,
 		Validator:          validate.New(),
+		Workspaces:         queries,
 		CORSAllowedOrigins: cfg.CORSAllowedOrigins,
 		RequestTimeout:     cfg.RequestTimeout,
+		MaxBodyBytes:       cfg.MaxBodyBytes,
 	})
 
 	srv := server.New(server.Config{
 		Addr:              cfg.Addr(),
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
+		ReadTimeout:       cfg.ReadTimeout,
+		WriteTimeout:      cfg.WriteTimeout,
+		IdleTimeout:       cfg.IdleTimeout,
 		ShutdownTimeout:   cfg.ShutdownTimeout,
 		// Called once the port is bound, so the address printed is real.
 		OnListen:   func(addr string) { report.Listening(addr, cfg.AppEnv) },

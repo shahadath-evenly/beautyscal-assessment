@@ -10,6 +10,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/real-musafir/b-scale/backend/internal/platform/httpx"
 )
 
 // Config holds every setting the API process needs to run.
@@ -29,8 +31,15 @@ type Config struct {
 
 	// ReadHeaderTimeout bounds how long the server waits for request headers.
 	ReadHeaderTimeout time.Duration
+	// ReadTimeout and WriteTimeout bound a whole request and response.
+	ReadTimeout  time.Duration
+	WriteTimeout time.Duration
+	// IdleTimeout closes keep-alive connections that go quiet.
+	IdleTimeout time.Duration
 	// RequestTimeout bounds the handling of a single request.
 	RequestTimeout time.Duration
+	// MaxBodyBytes caps the size of a request body.
+	MaxBodyBytes int64
 	// ShutdownTimeout bounds graceful shutdown before connections are closed.
 	ShutdownTimeout time.Duration
 
@@ -86,6 +95,18 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 	if cfg.RequestTimeout, err = envDuration("REQUEST_TIMEOUT", 15*time.Second); err != nil {
+		return Config{}, err
+	}
+	if cfg.ReadTimeout, err = envDuration("READ_TIMEOUT", 30*time.Second); err != nil {
+		return Config{}, err
+	}
+	if cfg.WriteTimeout, err = envDuration("WRITE_TIMEOUT", 30*time.Second); err != nil {
+		return Config{}, err
+	}
+	if cfg.IdleTimeout, err = envDuration("IDLE_TIMEOUT", 60*time.Second); err != nil {
+		return Config{}, err
+	}
+	if cfg.MaxBodyBytes, err = envInt64("MAX_BODY_BYTES", httpx.DefaultMaxBodyBytes); err != nil {
 		return Config{}, err
 	}
 	if cfg.ShutdownTimeout, err = envDuration("SHUTDOWN_TIMEOUT", 10*time.Second); err != nil {
@@ -156,6 +177,21 @@ func envDuration(key string, fallback time.Duration) (time.Duration, error) {
 		return 0, fmt.Errorf("config: %s must be positive", key)
 	}
 	return d, nil
+}
+
+func envInt64(key string, fallback int64) (int64, error) {
+	raw, ok := os.LookupEnv(key)
+	if !ok || strings.TrimSpace(raw) == "" {
+		return fallback, nil
+	}
+	n, err := strconv.ParseInt(strings.TrimSpace(raw), 10, 64)
+	if err != nil {
+		return 0, fmt.Errorf("config: %s must be an integer: %w", key, err)
+	}
+	if n <= 0 {
+		return 0, fmt.Errorf("config: %s must be positive", key)
+	}
+	return n, nil
 }
 
 func envInt32(key string, fallback int32) (int32, error) {

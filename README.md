@@ -32,6 +32,10 @@ Compose. Real environment variables always take precedence over the file, so
 | `LOG_FORMAT` | `text` | `text` for humans, `json` for log collectors |
 | `CORS_ALLOWED_ORIGINS` | `http://localhost:5173` | Comma-separated; `*` allows any origin |
 | `DB_MAX_CONNS` / `DB_MIN_CONNS` | `10` / `1` | pgx pool bounds |
+| `REQUEST_TIMEOUT` | `15s` | Per-request handling budget |
+| `READ_TIMEOUT` / `WRITE_TIMEOUT` | `30s` | Whole request and response |
+| `IDLE_TIMEOUT` | `60s` | Keep-alive connections that go quiet |
+| `MAX_BODY_BYTES` | `1048576` | Request body cap (1 MiB) |
 | `ATLAS_DEV_URL` | `postgres://localhost:5432/bscale_atlas_dev` | Scratch database Atlas rebuilds on every run |
 
 ## Running
@@ -51,6 +55,54 @@ Backend server listening on http://localhost:8081 (development)
 ```
 
 `make help` lists every target. `make check` runs gofmt, vet, build and tests.
+
+## Tenancy: the workspace middleware
+
+Every route under `/api` is scoped to one workspace, resolved once by
+`RequireWorkspace` rather than by each handler:
+
+```
+X-Workspace-ID: 84395f84-e5e5-42ac-9460-dc3f34f9023d
+```
+
+| Condition | Status | Code |
+| --- | --- | --- |
+| Header absent or blank | `400` | `workspace_header_missing` |
+| Header is not a UUID | `400` | `workspace_header_invalid` |
+| Workspace does not exist | `404` | `workspace_not_found` |
+| Lookup failed | `500` | `internal_error` (cause logged, never returned) |
+
+`404` rather than `403` for an unknown workspace is deliberate: confirming that
+a workspace exists would leak the existence of other tenants. The same applies
+to a resource belonging to another workspace.
+
+`/health` and `/ready` sit outside this, because a readiness probe cannot
+supply a workspace header.
+
+**The header is the only accepted source of a workspace.** A `workspaceId` in
+a request body is ignored; handlers read the value from the request context:
+
+```go
+workspaceID := middleware.MustWorkspaceID(r.Context())
+products, err := svc.ListProducts(ctx, workspaceID, params)
+```
+
+`MustWorkspaceID` panics when the context has none. A handler behind the
+middleware always does, so its absence is a wiring mistake — failing loudly is
+safer than proceeding with a zero UUID, which would read across tenants.
+`WorkspaceID(ctx)` is the non-panicking form.
+
+Every repository and service operation takes the workspace ID as an explicit
+argument. Nothing reads it from a global or re-derives it from the request.
+
+### Request handling limits
+
+- Request bodies are capped at `MAX_BODY_BYTES` (1 MiB by default) by
+  middleware, so a large or endless body fails the read rather than buffering.
+- `DecodeJSON` rejects unknown fields, trailing documents, a non-JSON
+  `Content-Type` and an empty body, each with a specific message.
+- Timeouts: `REQUEST_TIMEOUT` per request, `READ_TIMEOUT`/`WRITE_TIMEOUT` for
+  the whole exchange, `IDLE_TIMEOUT` for idle keep-alives.
 
 ## Demo data
 

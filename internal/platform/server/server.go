@@ -14,7 +14,13 @@ import (
 type Config struct {
 	Addr              string
 	ReadHeaderTimeout time.Duration
-	ShutdownTimeout   time.Duration
+	// ReadTimeout and WriteTimeout bound a whole request and response, so a
+	// slow client cannot hold a connection open indefinitely.
+	ReadTimeout  time.Duration
+	WriteTimeout time.Duration
+	// IdleTimeout closes keep-alive connections that go quiet.
+	IdleTimeout     time.Duration
+	ShutdownTimeout time.Duration
 
 	// OnListen, when set, is called once the listener is bound and before any
 	// request is served. It runs after the bind succeeds, so whatever it
@@ -39,6 +45,9 @@ func New(cfg Config, handler http.Handler, logger *slog.Logger) *Server {
 			Addr:              cfg.Addr,
 			Handler:           handler,
 			ReadHeaderTimeout: cfg.ReadHeaderTimeout,
+			ReadTimeout:       cfg.ReadTimeout,
+			WriteTimeout:      cfg.WriteTimeout,
+			IdleTimeout:       cfg.IdleTimeout,
 		},
 		logger: logger,
 		cfg:    cfg,
