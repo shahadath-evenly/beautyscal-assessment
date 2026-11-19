@@ -1,0 +1,34 @@
+# Go build output and local binaries
+/bin/
+/tmp/
+/out/
+/api
+/seed
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test, coverage and profiling output
+*.test
+*.out
+coverage.html
+cpu.prof
+mem.prof
+
+# Dependencies: modules are resolved from go.mod/go.sum, never vendored here
+/vendor/
+
+# Go workspace files are developer-local
+go.work
+go.work.sum
+
+# Local environment overrides (never commit real values)
+.env
+.env.local
+.env.*.local
+
+# Tooling caches
+.air.toml
+.DS_Store

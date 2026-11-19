@@ -1,0 +1,52 @@
+# sqlc generates type-safe Go from the SQL in db/queries, type-checked against
+# the Atlas migrations in db/migrations. Queries are the source of truth; the
+# generated code is never edited by hand.
+version: "2"
+
+sql:
+  - engine: postgresql
+    schema: "db/migrations"
+    queries: "db/queries"
+    gen:
+      go:
+        package: "sqlc"
+        # A subpackage of internal/db, so the generated db.go cannot collide
+        # with the hand-written connection pool in package db.
+        out: "internal/db/sqlc"
+        sql_package: "pgx/v5"
+
+        # Querier is an interface over every query, which lets services depend
+        # on a contract rather than the concrete struct.
+        emit_interface: true
+        # Lists return [] rather than nil, so JSON responses are never "null".
+        emit_empty_slices: true
+        # Nullable columns become pointers instead of pgtype wrappers.
+        emit_pointers_for_null_types: true
+        # DTOs are defined by hand at the HTTP boundary, so the database
+        # models carry no serialisation concerns.
+        emit_json_tags: false
+
+        overrides:
+          # UUIDs as google/uuid rather than pgtype.UUID: the same type the
+          # workspace middleware parses the X-Workspace-ID header into.
+          - db_type: "uuid"
+            go_type: "github.com/google/uuid.UUID"
+          - db_type: "uuid"
+            nullable: true
+            go_type:
+              type: "UUID"
+              import: "github.com/google/uuid"
+              pointer: true
+
+          # Every timestamp column is NOT NULL, so plain time.Time is exact
+          # and avoids pgtype wrappers in every struct.
+          - db_type: "timestamptz"
+            go_type: "time.Time"
+
+          # Money stays pgtype.Numeric, the driver's exact decimal type.
+          # It is never converted to a float; the service layer renders it as
+          # a decimal string for JSON.
+
+          # CHAR(3) currency: trimmed to a plain string.
+          - db_type: "pg_catalog.bpchar"
+            go_type: "string"
