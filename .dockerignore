@@ -1,0 +1,21 @@
+# Keep the build context minimal: only Go sources, module files and SQL.
+.git
+.gitignore
+.dockerignore
+Dockerfile
+
+# Local build output and caches
+bin/
+tmp/
+api
+seed
+*.exe
+*.test
+*.out
+coverage.html
+
+# Secrets and local overrides
+.env
+.env.local
+
+.DS_Store

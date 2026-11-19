@@ -1,0 +1,18 @@
+# Compiled binaries and local build output
+/bin/
+/tmp/
+api
+seed
+*.exe
+*.test
+
+# Go coverage and profiling output
+*.out
+coverage.html
+
+# Local environment overrides (never commit real values)
+.env
+.env.local
+
+# Editor and tooling caches
+.DS_Store
