@@ -1,21 +1,39 @@
-# Keep the build context minimal: only Go sources, module files and SQL.
+# Keep the build context to Go sources, module files and SQL.
+
+# Version control and Docker metadata
 .git
 .gitignore
 .dockerignore
 Dockerfile
 
-# Local build output and caches
+# Build output and local binaries
 bin/
 tmp/
+out/
 api
 seed
 *.exe
+*.so
+*.dylib
+
+# Test, coverage and profiling artifacts
 *.test
 *.out
 coverage.html
+*.prof
 
-# Secrets and local overrides
+# Vendored dependencies and developer-local workspace files
+vendor/
+go.work
+go.work.sum
+
+# Secrets and local environment overrides
 .env
 .env.local
+.env.*.local
 
+# Documentation and editor noise that cannot affect the build
+*.md
 .DS_Store
+.idea/
+.vscode/
