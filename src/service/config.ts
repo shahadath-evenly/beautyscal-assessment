@@ -1,6 +1,8 @@
 /**
- * API base URL. Set `VITE_API_BASE_URL` to point the app at a different
- * backend; the default matches the local backend port used by this project.
+ * API configuration.
+ *
+ * `VITE_API_BASE_URL` is inlined at build time by Vite, so changing it means
+ * rebuilding. It defaults to the backend's local port.
  */
 export const API_BASE_URL: string =
   import.meta.env.VITE_API_BASE_URL ?? "http://localhost:8081";
@@ -10,3 +12,6 @@ export const WORKSPACE_HEADER = "X-Workspace-ID";
 
 /** Default page size, matching the backend default. */
 export const DEFAULT_PAGE_SIZE = 10;
+
+/** Page sizes offered in listing controls. */
+export const PAGE_SIZE_OPTIONS = [10, 25, 50, 100];

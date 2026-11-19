@@ -1,12 +1,19 @@
 import { NavLink, Outlet } from "react-router-dom";
 
+import { Alert, WorkspaceSelector } from "../components/common";
+import { useWorkspace } from "../hooks/useWorkspace";
 import { paths } from "../routes/paths";
 
 /**
- * Application shell: brand, primary navigation and the routed page content.
- * The workspace switcher is mounted into the header in a later phase.
+ * The application shell: brand, primary navigation, workspace selector and
+ * the routed page.
+ *
+ * Nothing is fetched before a workspace is chosen, so the shell says what to
+ * do rather than letting pages fail with a missing-header error.
  */
 export function AppLayout() {
+  const { workspace } = useWorkspace();
+
   return (
     <div className="app-shell">
       <header className="app-header">
@@ -23,10 +30,20 @@ export function AppLayout() {
             Sales
           </NavLink>
         </nav>
+
+        <WorkspaceSelector />
       </header>
 
       <main className="app-main">
-        <Outlet />
+        {workspace ? (
+          <Outlet />
+        ) : (
+          <Alert tone="warning" title="Choose a workspace">
+            Every request is scoped to one workspace. Pick one above to continue —
+            run <code>make seed</code> in the backend to create the demo workspaces
+            and print their IDs.
+          </Alert>
+        )}
       </main>
     </div>
   );

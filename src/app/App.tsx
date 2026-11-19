@@ -4,21 +4,26 @@ import { BrowserRouter } from "react-router-dom";
 
 import { AppRoutes } from "../routes/AppRoutes";
 import { createQueryClient } from "./queryClient";
+import { WorkspaceProvider } from "./WorkspaceProvider";
 
 /**
- * Composition root: the query client and router are provided here, so pages
- * and features receive everything they need through context and props.
+ * Composition root.
+ *
+ * The query client is outermost because the workspace provider clears the
+ * cache when the tenant changes, so it must be able to reach it.
  */
 export function App() {
-  // Held in state so the client survives re-renders but is never shared
+  // Held in state so the client survives re-renders without being shared
   // across application instances.
   const [queryClient] = useState(createQueryClient);
 
   return (
     <QueryClientProvider client={queryClient}>
-      <BrowserRouter>
-        <AppRoutes />
-      </BrowserRouter>
+      <WorkspaceProvider>
+        <BrowserRouter>
+          <AppRoutes />
+        </BrowserRouter>
+      </WorkspaceProvider>
     </QueryClientProvider>
   );
 }

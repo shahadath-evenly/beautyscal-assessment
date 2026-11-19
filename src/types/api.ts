@@ -1,4 +1,4 @@
-/** Shared shapes of the API's success and error envelopes. */
+/** Shapes of the API's success and error envelopes. */
 
 /** Pagination metadata returned by every list endpoint. */
 export interface Meta {
@@ -14,10 +14,17 @@ export interface Envelope<T> {
   meta?: Meta;
 }
 
-/** A paginated response, where `meta` is always present. */
+/** A list response, where `meta` is always present. */
 export interface Paginated<T> {
   data: T[];
   meta: Meta;
+}
+
+/** One field-level problem, as the API reports it. */
+export interface FieldError {
+  field: string;
+  message: string;
+  rule?: string;
 }
 
 /** Error envelope: `{ error: { code, message, details? } }`. */
@@ -29,7 +36,7 @@ export interface ErrorEnvelope {
   };
 }
 
-/** Query parameters common to every listing. */
+/** Query parameters shared by every listing. */
 export interface PageParams {
   page?: number;
   limit?: number;

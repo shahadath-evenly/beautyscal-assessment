@@ -1,20 +1,16 @@
 import { Link } from "react-router-dom";
 
+import { Card, PageHeader } from "../components/common";
 import { paths } from "../routes/paths";
 
 /** Shown for any unknown route. */
 export function NotFoundPage() {
   return (
     <>
-      <header className="page-header">
-        <h1 className="page-header__title">Page not found</h1>
-        <p className="page-header__description">
-          That page does not exist. It may have moved.
-        </p>
-      </header>
-      <section className="card">
+      <PageHeader title="Page not found" description="That page does not exist." />
+      <Card>
         <Link to={paths.buyer}>Back to the buyer page</Link>
-      </section>
+      </Card>
     </>
   );
 }
