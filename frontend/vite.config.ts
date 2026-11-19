@@ -1,0 +1,17 @@
+import react from "@vitejs/plugin-react";
+import { defineConfig } from "vite";
+
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [react()],
+  server: {
+    port: 5173,
+    // Fail loudly rather than silently moving to another port, so the
+    // backend's CORS allowlist stays correct.
+    strictPort: true,
+  },
+  preview: {
+    port: 5173,
+    strictPort: true,
+  },
+});

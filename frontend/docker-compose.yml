@@ -1,0 +1,27 @@
+# Frontend stack: the built React client served by nginx. Independent of the
+# backend, which it reaches over the host at VITE_API_BASE_URL.
+# Environment values are read from ./.env
+#
+#   docker compose up --build   build and serve on http://localhost:5173
+#   docker compose down         stop
+
+name: beautyscale-frontend
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+      args:
+        # Vite inlines VITE_* values at build time, so this is a build
+        # argument, not a runtime variable. It must be the URL the BROWSER
+        # uses, which is a host address: a Compose service name would not
+        # resolve outside Docker.
+        VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8081}
+        # The demo workspace list, likewise inlined at build time. Without it
+        # the image ships a switcher with no options.
+        VITE_WORKSPACES: ${VITE_WORKSPACES:-}
+    container_name: beautyscale-web
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_HOST_PORT:-5173}:80"

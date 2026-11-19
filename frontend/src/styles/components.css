@@ -1,0 +1,1062 @@
+/* Shared components. Spacing, control heights and table density are driven by
+   the tokens in theme.css, so every surface stays consistent. */
+
+.visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+/* ---------------------------------------------------------------- buttons */
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--space-2);
+  height: var(--control-height);
+  padding: 0 var(--space-4);
+  border: 1px solid transparent;
+  border-radius: var(--radius-md);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 120ms ease, border-color 120ms ease, color 120ms ease;
+}
+
+.button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.button--sm {
+  height: 30px;
+  padding: 0 var(--space-3);
+  font-size: 13px;
+}
+
+.button--primary {
+  background: var(--color-brand);
+  color: #fff;
+}
+.button--primary:hover:not(:disabled) {
+  background: var(--color-brand-hover);
+}
+
+.button--secondary {
+  background: var(--color-surface);
+  border-color: var(--color-border);
+  color: var(--color-text);
+}
+.button--secondary:hover:not(:disabled) {
+  background: var(--color-brand-tint);
+  border-color: var(--color-brand);
+  color: var(--color-brand-hover);
+}
+
+.button--ghost {
+  background: transparent;
+  color: var(--color-text-muted);
+}
+.button--ghost:hover:not(:disabled) {
+  background: var(--color-brand-tint);
+  color: var(--color-brand-hover);
+}
+
+.button--success {
+  background: var(--color-success);
+  color: #fff;
+}
+.button--success:hover:not(:disabled) {
+  filter: brightness(0.94);
+}
+
+.button--danger {
+  background: var(--color-surface);
+  border-color: var(--color-danger);
+  color: var(--color-danger);
+}
+.button--danger:hover:not(:disabled) {
+  background: var(--color-danger-soft);
+}
+
+.button__spinner {
+  width: 13px;
+  height: 13px;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 650ms linear infinite;
+}
+
+/* ----------------------------------------------------------------- inputs */
+.input,
+.select {
+  width: 100%;
+  height: var(--control-height);
+  padding: 0 var(--space-3);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 14px;
+}
+
+.input:focus,
+.select:focus {
+  border-color: var(--color-brand);
+  box-shadow: var(--focus-ring);
+  outline: none;
+}
+
+.input--invalid,
+.select--invalid {
+  border-color: var(--color-danger);
+}
+
+.input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  margin-bottom: var(--space-4);
+}
+
+.field__label {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.field__required {
+  margin-left: 2px;
+  color: var(--color-danger);
+}
+
+.field__hint {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.field__error {
+  margin: 0;
+  color: var(--color-danger);
+  font-size: 12px;
+}
+
+.search-input {
+  position: relative;
+  min-width: 220px;
+}
+
+.search-input__clear {
+  position: absolute;
+  top: 50%;
+  right: var(--space-2);
+  transform: translateY(-50%);
+  width: 22px;
+  height: 22px;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  font-size: 16px;
+  line-height: 1;
+  cursor: pointer;
+}
+.search-input__clear:hover {
+  background: var(--color-brand-tint);
+  color: var(--color-brand-hover);
+}
+
+/* ----------------------------------------------------------------- badges */
+.badge {
+  display: inline-block;
+  padding: 2px var(--space-2);
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.badge--new {
+  background: var(--color-brand-soft);
+  color: var(--color-brand-hover);
+}
+.badge--accepted {
+  background: var(--color-success-soft);
+  color: var(--color-success);
+}
+.badge--rejected {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+.badge--low {
+  background: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+
+/* ------------------------------------------------------------------ cards */
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.card__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.card__title {
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.card__description {
+  margin: var(--space-1) 0 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.card__actions {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  flex-wrap: wrap;
+}
+
+.card__body {
+  padding: var(--space-5);
+}
+
+.card__body--flush {
+  padding: 0;
+}
+
+/* ----------------------------------------------------------------- states */
+.loading-state,
+.empty-state,
+.error-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-6) var(--space-4);
+  text-align: center;
+}
+
+.loading-state--inline {
+  flex-direction: row;
+  padding: 0;
+}
+
+.loading-state__message,
+.empty-state__description,
+.error-state__description {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.empty-state__title,
+.error-state__title {
+  margin: 0;
+  font-weight: 600;
+}
+
+.error-state__title {
+  color: var(--color-danger);
+}
+
+.spinner__circle {
+  display: block;
+  width: 20px;
+  height: 20px;
+  border: 2px solid var(--color-border);
+  border-top-color: var(--color-brand);
+  border-radius: 50%;
+  animation: spin 650ms linear infinite;
+}
+
+.spinner--sm .spinner__circle {
+  width: 14px;
+  height: 14px;
+}
+.spinner--lg .spinner__circle {
+  width: 28px;
+  height: 28px;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+/* Respect a reduced-motion preference: the spinner still indicates activity
+   through the live region. */
+@media (prefers-reduced-motion: reduce) {
+  .spinner__circle,
+  .button__spinner {
+    animation-duration: 2s;
+  }
+}
+
+/* ----------------------------------------------------------------- alerts */
+.alert {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  font-size: 13px;
+}
+
+.alert--info {
+  background: var(--color-brand-tint);
+  border-color: var(--color-brand-soft);
+  color: var(--color-text);
+}
+.alert--success {
+  background: var(--color-success-soft);
+  border-color: var(--color-success-soft);
+  color: var(--color-success);
+}
+.alert--warning {
+  background: var(--color-warning-soft);
+  border-color: var(--color-warning-soft);
+  color: var(--color-warning);
+}
+.alert--danger {
+  background: var(--color-danger-soft);
+  border-color: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.alert__title {
+  margin: 0 0 2px;
+  font-weight: 600;
+}
+
+.alert__message {
+  margin: 0;
+}
+
+.alert code {
+  padding: 1px 4px;
+  background: rgb(23 23 23 / 7%);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.alert__dismiss {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  font-size: 18px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+/* ------------------------------------------------------------------ table */
+.data-table {
+  display: flex;
+  flex-direction: column;
+}
+
+.data-table__scroll {
+  overflow-x: auto;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.table th,
+.table td {
+  padding: var(--space-3) var(--space-4);
+  text-align: left;
+  border-bottom: 1px solid var(--color-border);
+  vertical-align: middle;
+}
+
+.table thead th {
+  background: var(--color-background);
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.table tbody tr:last-child td {
+  border-bottom: 0;
+}
+
+.table tbody tr:hover {
+  background: var(--color-brand-tint);
+}
+
+.table__cell--right {
+  text-align: right;
+}
+.table__cell--center {
+  text-align: center;
+}
+
+.table__cell--actions {
+  white-space: nowrap;
+}
+
+.table__state {
+  padding: 0;
+}
+
+.table__state:hover {
+  background: transparent;
+}
+
+.row-primary {
+  display: block;
+  font-weight: 500;
+}
+
+.row-secondary {
+  display: block;
+  margin-top: 1px;
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.row-muted {
+  color: var(--color-text-muted);
+}
+
+.row-money {
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------------------- pagination */
+.pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+  padding: var(--space-3) var(--space-4);
+  border-top: 1px solid var(--color-border);
+}
+
+.pagination__summary {
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.pagination__controls {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+  flex-wrap: wrap;
+}
+
+.pagination__size {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.pagination__size-label {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.pagination__pages {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+}
+
+.pagination__position {
+  color: var(--color-text-muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+/* ------------------------------------------------- workspace selector */
+.workspace-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 230px;
+}
+
+.workspace-selector__label {
+  color: var(--color-text-muted);
+  font-size: 12px;
+}
+
+.workspace-selector__hint {
+  font-style: italic;
+}
+
+.workspace-selector .select,
+.workspace-selector .input,
+.workspace-selector .combobox__control {
+  height: 32px;
+}
+
+.workspace-selector__manual-row {
+  display: flex;
+  gap: var(--space-2);
+}
+
+/* Below the mobile breakpoint, desktop-only columns are hidden rather than
+   squeezed, so the buyer flow stays usable on a phone. */
+@media (max-width: 720px) {
+  .table__cell--desktop {
+    display: none;
+  }
+
+  .pagination {
+    justify-content: center;
+  }
+}
+
+/* ------------------------------------------------------------ buyer page */
+/* Catalogue and summary side by side on a desktop; stacked on a phone, with
+   the summary first so the buyer can see what they have chosen. */
+.buyer-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.quantity-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.quantity-picker__input {
+  width: 64px;
+  height: 30px;
+  padding: 0 var(--space-2);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The native number spinners duplicate the − and + controls. */
+.quantity-picker__input::-webkit-outer-spin-button,
+.quantity-picker__input::-webkit-inner-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.quantity-picker__input {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.quantity-picker__blocked {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.cart {
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  list-style: none;
+}
+
+.cart__line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cart__line-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.cart__line-total {
+  font-weight: 500;
+}
+
+.cart__total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: var(--space-3) 0;
+  margin-bottom: var(--space-4);
+  border-top: 2px solid var(--color-border);
+  font-size: 15px;
+}
+
+.cart__total strong {
+  font-size: 18px;
+}
+
+.buyer-form {
+  margin-top: var(--space-2);
+}
+
+.buyer-form__error {
+  margin-bottom: var(--space-4);
+}
+
+.alert__message--muted {
+  margin-top: var(--space-1);
+  opacity: 0.85;
+  font-size: 12px;
+}
+
+.summary-list {
+  margin: var(--space-4) 0;
+}
+
+.summary-list__row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.summary-list dt {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.summary-list dd {
+  margin: 0;
+  text-align: right;
+}
+
+.summary-list__mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.confirmation-table {
+  margin-top: var(--space-5);
+}
+
+.confirmation-table tfoot th,
+.confirmation-table tfoot td {
+  border-top: 2px solid var(--color-border);
+  border-bottom: 0;
+}
+
+@media (max-width: 960px) {
+  .buyer-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* ----------------------------------------------------------------------- */
+/* Sales dashboard                                                          */
+/* ----------------------------------------------------------------------- */
+
+.listing__toolbar {
+  padding: var(--space-4) var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: var(--space-3);
+}
+
+.filters .search-input {
+  flex: 1 1 260px;
+}
+
+.filters__field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+
+.filters__label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-text-muted);
+}
+
+.row-actions {
+  display: inline-flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+}
+
+/* ----------------------------------------------------------------------- */
+/* Modal                                                                    */
+/* ----------------------------------------------------------------------- */
+
+.modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: var(--space-5);
+  overflow-y: auto;
+  background: rgb(23 23 23 / 45%);
+}
+
+.modal__panel {
+  width: 100%;
+  margin: auto;
+  background: var(--color-surface);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 10px 30px rgb(23 23 23 / 18%);
+}
+
+.modal__panel:focus {
+  outline: none;
+}
+
+.modal__panel--sm {
+  max-width: 420px;
+}
+
+.modal__panel--lg {
+  max-width: 680px;
+}
+
+.modal__header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-5);
+  border-bottom: 1px solid var(--color-border);
+}
+
+.modal__title {
+  margin: 0;
+  font-size: 17px;
+  font-weight: 600;
+}
+
+.modal__description {
+  margin: var(--space-1) 0 0;
+  font-size: 13px;
+  color: var(--color-text-muted);
+}
+
+.modal__close {
+  flex: none;
+  width: 28px;
+  height: 28px;
+  font-size: 20px;
+  line-height: 1;
+  color: var(--color-text-muted);
+  cursor: pointer;
+  background: none;
+  border: 0;
+  border-radius: var(--radius-sm);
+}
+
+.modal__close:hover:not(:disabled) {
+  color: var(--color-text);
+  background: var(--color-background);
+}
+
+.modal__close:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.modal__body {
+  padding: var(--space-5);
+}
+
+.modal__message {
+  margin: 0;
+  color: var(--color-text-muted);
+}
+
+.modal__footer {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--space-2);
+  padding: var(--space-4) var(--space-5);
+  border-top: 1px solid var(--color-border);
+}
+
+@media (max-width: 720px) {
+  .modal {
+    padding: var(--space-3);
+  }
+
+  .filters .search-input,
+  .filters__field {
+    flex: 1 1 100%;
+  }
+
+  .row-actions {
+    justify-content: flex-start;
+  }
+}
+
+/* Combobox -----------------------------------------------------------------
+   The searchable dropdown used everywhere in place of a native select. The
+   panel is a floating surface, so it needs its own stacking context; the
+   control itself matches .input exactly, so a row of mixed controls still
+   lines up. */
+
+.combobox {
+  position: relative;
+  width: 100%;
+}
+
+.combobox__control {
+  display: flex;
+  align-items: center;
+  height: var(--control-height);
+  padding-right: var(--space-1);
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  transition: border-color 120ms ease, box-shadow 120ms ease;
+}
+
+.combobox__control:hover {
+  border-color: #d4d4d4;
+}
+
+.combobox:focus-within .combobox__control {
+  border-color: var(--color-brand);
+  box-shadow: var(--focus-ring);
+}
+
+.combobox--invalid .combobox__control {
+  border-color: var(--color-danger);
+}
+
+.combobox--disabled .combobox__control {
+  background: var(--color-background);
+  cursor: not-allowed;
+}
+
+.combobox__input {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  padding: 0 var(--space-3);
+  background: none;
+  border: none;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 14px;
+  text-overflow: ellipsis;
+}
+
+.combobox__input:focus {
+  outline: none;
+}
+
+.combobox__input::placeholder {
+  color: var(--color-text-muted);
+}
+
+.combobox__input:disabled {
+  cursor: not-allowed;
+}
+
+/* The inline completion, which the browser renders as a normal selection. */
+.combobox__input::selection {
+  background: var(--color-brand-soft);
+  color: var(--color-text);
+}
+
+.combobox__clear,
+.combobox__toggle {
+  display: grid;
+  place-items: center;
+  flex: none;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  background: none;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--color-text-muted);
+  cursor: pointer;
+}
+
+.combobox__clear svg,
+.combobox__toggle svg {
+  width: 16px;
+  height: 16px;
+}
+
+.combobox__clear:hover,
+.combobox__toggle:hover {
+  background: var(--color-brand-tint);
+  color: var(--color-brand);
+}
+
+.combobox__toggle svg {
+  transition: transform 140ms ease;
+}
+
+.combobox--open .combobox__toggle svg {
+  transform: rotate(180deg);
+}
+
+.combobox--open .combobox__toggle {
+  color: var(--color-brand);
+}
+
+.combobox__list {
+  position: absolute;
+  z-index: 20;
+  top: calc(100% + var(--space-1));
+  right: 0;
+  left: 0;
+  max-height: 264px;
+  margin: 0;
+  padding: var(--space-1);
+  overflow-y: auto;
+  list-style: none;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+  box-shadow: 0 4px 6px -2px rgb(23 23 23 / 6%), 0 12px 20px -6px rgb(23 23 23 / 12%);
+}
+
+.combobox__option {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  color: var(--color-text);
+  font-size: 14px;
+  cursor: pointer;
+}
+
+.combobox__option-text {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+}
+
+.combobox__option-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.combobox__option-hint {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* One highlight only: the active row is wherever the keyboard or the pointer
+   last was, so they can never disagree. */
+.combobox__option--active {
+  background: var(--color-brand-tint);
+}
+
+.combobox__option--selected {
+  color: var(--color-brand-hover);
+  font-weight: 600;
+}
+
+.combobox__option--selected.combobox__option--active {
+  background: var(--color-brand-soft);
+}
+
+.combobox__check {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  color: var(--color-brand);
+}
+
+.combobox__mark {
+  padding: 0 1px;
+  background: var(--color-brand-soft);
+  border-radius: 3px;
+  color: var(--color-brand-hover);
+  font-weight: 600;
+}
+
+.combobox__empty {
+  padding: var(--space-3);
+  color: var(--color-text-muted);
+  font-size: 14px;
+  text-align: center;
+}
+
+/* Opens upward, for a control sitting near the bottom of the page. */
+.combobox--top .combobox__list {
+  top: auto;
+  bottom: calc(100% + var(--space-1));
+}
+
+/* Compact variant, for the page-size control that sits in a row of small
+   buttons. */
+.combobox--sm {
+  width: auto;
+  min-width: 84px;
+}
+
+.combobox--sm .combobox__control {
+  height: 32px;
+}
+
+.combobox--sm .combobox__input {
+  padding: 0 var(--space-2);
+  font-size: 13px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .combobox__control,
+  .combobox__toggle svg {
+    transition: none;
+  }
+}
