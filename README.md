@@ -36,6 +36,10 @@ Compose. Real environment variables always take precedence over the file, so
 | `READ_TIMEOUT` / `WRITE_TIMEOUT` | `30s` | Whole request and response |
 | `IDLE_TIMEOUT` | `60s` | Keep-alive connections that go quiet |
 | `MAX_BODY_BYTES` | `1048576` | Request body cap (1 MiB) |
+| `EXPIRY_ENABLED` | `true` | Runs the stale-request expiry job |
+| `EXPIRY_MAX_AGE` | `168h` | How long a request may stay `new` (seven days) |
+| `EXPIRY_INTERVAL` | `1h` | Gap between sweeps |
+| `EXPIRY_TIMEOUT` | `30s` | Bounds a single sweep |
 | `ATLAS_DEV_URL` | `postgres://localhost:5432/bscale_atlas_dev` | Scratch database Atlas rebuilds on every run |
 
 ## Running
@@ -279,6 +283,58 @@ argument. Nothing reads it from a global or re-derives it from the request.
   `Content-Type` and an empty body, each with a specific message.
 - Timeouts: `REQUEST_TIMEOUT` per request, `READ_TIMEOUT`/`WRITE_TIMEOUT` for
   the whole exchange, `IDLE_TIMEOUT` for idle keep-alives.
+
+## Background jobs
+
+### Expiring stale requests
+
+A request nobody acts on should not sit in the sales queue forever. A job
+sweeps periodically and expires anything left in `new` past `EXPIRY_MAX_AGE`,
+which defaults to the seven days the brief asks for.
+
+```
+time=… level=INFO msg="request expiry job started" interval=1h0m0s maxAge=168h0m0s
+time=… level=INFO msg="expired stale order requests" count=3 workspaces=2 maxAge=168h0m0s cutoff=2026-11-12T14:33:22Z
+time=… level=INFO msg="expired stale order requests for workspace" workspaceId=647354ae-… count=2
+```
+
+**Only `new` expires.** The statement is a single guarded `UPDATE` —
+`WHERE status = 'new' AND created_at < $1` — so an accepted request, which
+has a draft order and reserved stock behind it, is never touched however old
+it is, and neither is one a salesperson already rejected. The guard is in SQL
+rather than in Go, so a concurrent accept racing the sweep is resolved by the
+row lock: whichever gets there first wins, and the loser matches no row.
+
+**The sweep is global, but tenant-aware.** It is a background task, not a
+request, so it has no `X-Workspace-ID` to scope to and deliberately covers
+every workspace in one statement. Each affected row comes back with its
+`workspace_id`, and the job logs a line per workspace, so expiry is never
+attributed to the wrong tenant.
+
+**Two kinds of overlap are prevented.** Within a process, the loop is
+sequential: the next sweep is scheduled only once the previous one returns,
+measured from the end rather than on a fixed tick, so a slow sweep delays the
+next instead of being joined by it. Across processes, each sweep first takes
+a PostgreSQL session-level advisory lock (`pg_try_advisory_lock`) and skips
+the run entirely if another instance holds it. The lock is tied to a
+connection, so a process that dies mid-sweep releases it when its session
+ends — a crash cannot wedge the job permanently.
+
+There is no scheduler library here. A `time.Timer` and an advisory lock give
+both guarantees in less code than configuring one would take.
+
+### What "expired" means in the schema
+
+An expired request is moved to **`rejected`**. The schema keeps the three
+statuses the brief specifies — `new`, `accepted`, `rejected` — so expiry
+reuses the terminal status that already means "this will not become an
+order", and the API, the status filter and the frontend need no changes.
+
+The cost is that the sales UI cannot distinguish a request a human rejected
+from one the clock rejected. If that distinction matters, the change is a
+migration widening the status check to include `expired`, plus the matching
+status union, filter option and badge in the frontend. It was left out here
+because it ripples through the whole stack for a bonus feature.
 
 ## Demo data
 

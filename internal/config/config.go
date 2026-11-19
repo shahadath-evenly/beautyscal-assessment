@@ -53,6 +53,9 @@ type Config struct {
 	// Email holds the buyer-notification settings.
 	Email EmailConfig
 
+	// Expiry holds the stale-request expiry job settings.
+	Expiry ExpiryConfig
+
 	// EnvFile is the .env file that was read, empty when none was found.
 	EnvFile string
 	// EnvInjected counts the variables that file contributed, so startup
@@ -99,6 +102,22 @@ type EmailConfig struct {
 // Configured reports whether a real provider is available.
 func (e EmailConfig) Configured() bool {
 	return strings.TrimSpace(e.BrevoAPIKey) != "" && strings.TrimSpace(e.BrevoSenderEmail) != ""
+}
+
+// ExpiryConfig configures the background job that expires order requests
+// left in 'new' for too long.
+type ExpiryConfig struct {
+	// Enabled turns the job on. Off, nothing expires and requests stay 'new'
+	// indefinitely.
+	Enabled bool
+	// Interval is the gap between sweeps. Hourly is ample for a seven-day
+	// window: the job only has to be far more frequent than MaxAge.
+	Interval time.Duration
+	// MaxAge is how long a request may sit in 'new'. The business rule is
+	// seven days; it is configurable so a demo can watch the job work.
+	MaxAge time.Duration
+	// Timeout bounds one sweep.
+	Timeout time.Duration
 }
 
 // Load reads configuration from the process environment, applying defaults for
@@ -170,10 +189,36 @@ func Load() (Config, error) {
 		return Config{}, err
 	}
 
+	if cfg.Expiry, err = loadExpiry(); err != nil {
+		return Config{}, err
+	}
+
 	if err := cfg.validate(); err != nil {
 		return Config{}, err
 	}
 	return cfg, nil
+}
+
+// loadExpiry reads the stale-request expiry settings.
+func loadExpiry() (ExpiryConfig, error) {
+	var (
+		e   ExpiryConfig
+		err error
+	)
+
+	if e.Enabled, err = envBool("EXPIRY_ENABLED", true); err != nil {
+		return ExpiryConfig{}, err
+	}
+	if e.Interval, err = envDuration("EXPIRY_INTERVAL", time.Hour); err != nil {
+		return ExpiryConfig{}, err
+	}
+	if e.MaxAge, err = envDuration("EXPIRY_MAX_AGE", 7*24*time.Hour); err != nil {
+		return ExpiryConfig{}, err
+	}
+	if e.Timeout, err = envDuration("EXPIRY_TIMEOUT", 30*time.Second); err != nil {
+		return ExpiryConfig{}, err
+	}
+	return e, nil
 }
 
 // loadEmail reads the notification settings.

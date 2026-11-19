@@ -16,6 +16,7 @@ import (
 	"github.com/real-musafir/b-scale/backend/internal/db"
 	"github.com/real-musafir/b-scale/backend/internal/db/sqlc"
 	"github.com/real-musafir/b-scale/backend/internal/email"
+	"github.com/real-musafir/b-scale/backend/internal/jobs"
 	"github.com/real-musafir/b-scale/backend/internal/modules/orderrequest"
 	"github.com/real-musafir/b-scale/backend/internal/modules/product"
 	"github.com/real-musafir/b-scale/backend/internal/platform/logging"
@@ -128,6 +129,32 @@ func run() error {
 		logger.Info("email worker disabled; acceptance events are still queued")
 	}
 
+	// The expiry job runs beside the server too. It takes a PostgreSQL
+	// advisory lock before each sweep, so running several API processes
+	// against one database stays safe.
+	var expiryDone chan struct{}
+	if cfg.Expiry.Enabled {
+		runner := jobs.NewExpiryRunner(
+			queries,
+			jobs.NewAdvisoryLocker(pool, jobs.ExpiryLockKey, logger),
+			logger,
+			jobs.ExpiryConfig{
+				Interval: cfg.Expiry.Interval,
+				MaxAge:   cfg.Expiry.MaxAge,
+				Timeout:  cfg.Expiry.Timeout,
+			},
+		)
+		expiryDone = make(chan struct{})
+		go func() {
+			defer close(expiryDone)
+			runner.Run(ctx)
+		}()
+		report.Done("Request expiry job running (every " + cfg.Expiry.Interval.String() +
+			", expiring after " + cfg.Expiry.MaxAge.String() + ")")
+	} else {
+		logger.Info("request expiry job disabled; stale requests stay new")
+	}
+
 	srv := server.New(server.Config{
 		Addr:              cfg.Addr(),
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
@@ -147,6 +174,9 @@ func run() error {
 	// the pool closes under it.
 	if workerDone != nil {
 		<-workerDone
+	}
+	if expiryDone != nil {
+		<-expiryDone
 	}
 	report.Done("Server stopped")
 	return nil

@@ -4,6 +4,7 @@ import (
 	"os"
 	"path/filepath"
 	"testing"
+	"time"
 )
 
 func TestLoadEnvFile(t *testing.T) {
@@ -98,5 +99,52 @@ func TestLoadAppliesDefaults(t *testing.T) {
 	}
 	if cfg.DBMaxConns != 10 {
 		t.Errorf("DBMaxConns = %d, want 10", cfg.DBMaxConns)
+	}
+}
+
+func TestLoadExpiryDefaultsToSevenDays(t *testing.T) {
+	t.Setenv("ENV_FILE", filepath.Join(t.TempDir(), "absent"))
+	t.Setenv("DATABASE_URL", "postgres://user@localhost:5432/db")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if !cfg.Expiry.Enabled {
+		t.Error("Expiry.Enabled = false, want true")
+	}
+	if cfg.Expiry.MaxAge != 7*24*time.Hour {
+		t.Errorf("Expiry.MaxAge = %v, want 168h", cfg.Expiry.MaxAge)
+	}
+	if cfg.Expiry.Interval != time.Hour {
+		t.Errorf("Expiry.Interval = %v, want 1h", cfg.Expiry.Interval)
+	}
+}
+
+// A window of zero would expire every request on the next sweep, including
+// one submitted a second ago, so it is rejected at startup rather than
+// defaulted away.
+func TestLoadRejectsANonPositiveExpiryWindow(t *testing.T) {
+	t.Setenv("ENV_FILE", filepath.Join(t.TempDir(), "absent"))
+	t.Setenv("DATABASE_URL", "postgres://user@localhost:5432/db")
+	t.Setenv("EXPIRY_MAX_AGE", "0s")
+
+	if _, err := Load(); err == nil {
+		t.Fatal("expected an error when EXPIRY_MAX_AGE is zero")
+	}
+}
+
+// The job can be turned off entirely.
+func TestLoadCanDisableExpiry(t *testing.T) {
+	t.Setenv("ENV_FILE", filepath.Join(t.TempDir(), "absent"))
+	t.Setenv("DATABASE_URL", "postgres://user@localhost:5432/db")
+	t.Setenv("EXPIRY_ENABLED", "false")
+
+	cfg, err := Load()
+	if err != nil {
+		t.Fatalf("Load: %v", err)
+	}
+	if cfg.Expiry.Enabled {
+		t.Error("Expiry.Enabled = true, want false")
 	}
 }
