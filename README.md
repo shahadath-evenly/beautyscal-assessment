@@ -98,6 +98,60 @@ The make targets load `.env` for you.
 Note: `atlas migrate lint` requires an Atlas Cloud account since v0.38, so it
 is not part of the workflow here.
 
+## Database layer (sqlc)
+
+SQL lives in `db/queries/`, type-checked against the Atlas migrations and
+compiled into Go by sqlc. The generated code in `internal/db/sqlc/` is never
+edited by hand.
+
+```bash
+make sqlc           # regenerate after changing a query file
+make sqlc-check     # fail if generated code is out of date (part of make check)
+```
+
+Configuration choices in `sqlc.yaml`:
+
+- **`sql_package: pgx/v5`** — the generated code uses the same driver as the
+  connection pool, so there is no `database/sql` layer in between.
+- **UUIDs as `github.com/google/uuid.UUID`**, the type the workspace
+  middleware parses `X-Workspace-ID` into.
+- **Timestamps as `time.Time`**, exact because every timestamp column is
+  `NOT NULL`.
+- **Money as `pgtype.Numeric`** — the driver's exact decimal type. It is never
+  converted to a float; the service layer renders it as a decimal string.
+- **`emit_interface`** generates a `Querier` interface, so services depend on
+  a contract rather than the concrete struct.
+- **`emit_empty_slices`** makes list queries return `[]` rather than `nil`, so
+  a JSON list is never `null`.
+- **`emit_pointers_for_null_types`** makes optional filters `*string`, where
+  `nil` means "no filter" — the filter is applied in SQL, never by building a
+  query string in Go.
+
+Every tenant-owned query takes `workspace_id` as its first parameter, search
+runs as a parameterised `ILIKE` inside PostgreSQL, and pagination is `LIMIT`/
+`OFFSET` with a deterministic `ORDER BY created_at DESC, id DESC`.
+
+### Statements behind the accept flow
+
+| Query | Role |
+| --- | --- |
+| `GetOrderRequestForUpdate` | `SELECT ... FOR UPDATE` on the request, so concurrent accepts serialise |
+| `SumOrderRequestQuantitiesByProduct` | Aggregates lines by product, so a repeated product is decremented once |
+| `LockProductsForUpdate` | Locks products in ascending id order — the deadlock guard |
+| `DecrementProductStock` | `WHERE stock >= quantity`, so an oversell updates no row |
+| `MarkOrderRequestAccepted` | `WHERE status = 'new'`, making the transition atomic |
+| `CreateOrder` | One draft order; the unique constraint rejects a second |
+| `CopyOrderItemsFromRequest` | Builds order lines from the request snapshots without leaving the database |
+
+`internal/db/sqlc/queries_test.go` runs these against a real PostgreSQL inside
+a transaction that is always rolled back. It skips when `DATABASE_URL` is
+unset:
+
+```bash
+make check                      # includes the database tests when .env is present
+go test ./internal/db/sqlc/ -v
+```
+
 ## Schema
 
 Six tables. Every tenant-owned table carries `workspace_id NOT NULL`, money is

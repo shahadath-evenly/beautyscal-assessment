@@ -112,11 +112,23 @@ migrate-fresh:
 verify-schema:
 	@$(LOAD_ENV); psql "$$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f db/verify/invariants.sql
 
+# --- Code generation (sqlc) ------------------------------------------------
+
+## sqlc: regenerate the database layer from db/queries
+.PHONY: sqlc
+sqlc:
+	sqlc generate
+
+## sqlc-check: fail if the generated code is out of date with the queries
+.PHONY: sqlc-check
+sqlc-check:
+	sqlc diff
+
 # --- Checks ----------------------------------------------------------------
 
 ## check: gofmt, vet, build and tests
 .PHONY: check
-check:
+check: sqlc-check
 	@test -z "$$(gofmt -l .)" || { echo "gofmt needed:"; gofmt -l .; exit 1; }
 	go vet ./...
 	go build ./...
