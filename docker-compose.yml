@@ -18,6 +18,9 @@ services:
         # uses, which is a host address: a Compose service name would not
         # resolve outside Docker.
         VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8081}
+        # The demo workspace list, likewise inlined at build time. Without it
+        # the image ships a switcher with no options.
+        VITE_WORKSPACES: ${VITE_WORKSPACES:-}
     container_name: beautyscale-web
     restart: unless-stopped
     ports:

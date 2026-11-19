@@ -18,6 +18,12 @@ COPY . .
 ARG VITE_API_BASE_URL=http://localhost:8081
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 
+# The demo workspace switcher's options, as JSON. Also inlined at build time,
+# so without it the containerised UI offers no workspaces and falls back to
+# pasting an ID. `make seed` in the backend prints the current IDs.
+ARG VITE_WORKSPACES=
+ENV VITE_WORKSPACES=$VITE_WORKSPACES
+
 RUN npm run build
 
 # ---------- runtime stage ----------
