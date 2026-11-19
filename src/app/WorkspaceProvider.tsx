@@ -1,7 +1,7 @@
-import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import { useCallback, useMemo, useState, type ReactNode } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
-import { setActiveWorkspaceId, workspacesService } from "../service";
+import { getActiveWorkspaceId, setActiveWorkspaceId, workspacesService } from "../service";
 import type { Workspace } from "../types/workspace";
 import { WorkspaceContext, type WorkspaceContextValue } from "./WorkspaceContext";
 
@@ -41,6 +41,25 @@ function writeStored(workspace: Workspace | null): void {
 }
 
 /**
+ * The workspace to start as: the remembered one when it is still configured,
+ * otherwise the first configured one.
+ *
+ * A remembered ID is dropped when the configured list no longer contains it,
+ * because a stale choice (an older seed, a different database) would make
+ * every request 404 against a tenant that is gone. With no list at all the
+ * remembered ID is kept, since that is the pasted-ID mode.
+ */
+function resolveInitial(workspaces: Workspace[]): Workspace | null {
+  const stored = readStored();
+  if (stored) {
+    if (workspaces.length === 0) return stored;
+    const known = workspaces.find((option) => option.id === stored.id);
+    if (known) return known;
+  }
+  return workspaces[0] ?? null;
+}
+
+/**
  * Holds the active workspace and keeps the service layer in step with it.
  *
  * Choosing a workspace changes which tenant the API answers for, so the query
@@ -52,18 +71,21 @@ export function WorkspaceProvider({ children }: { children: ReactNode }) {
   const workspaces = useMemo(() => workspacesService.list(), []);
 
   const [workspace, setWorkspace] = useState<Workspace | null>(() => {
-    const stored = readStored();
-    if (stored) return stored;
-    // Default to the first configured workspace, so a fresh visit works.
-    return workspaces[0] ?? null;
+    const initial = resolveInitial(workspaces);
+    // Set during the initializer, not in an effect: React runs a child's
+    // effects before its parent's, so a page's query would mount and fetch
+    // with no header yet, and the API would answer 400 "X-Workspace-ID
+    // header is required" on every reload.
+    setActiveWorkspaceId(initial?.id ?? null);
+    return initial;
   });
 
-  // The service layer attaches the header, so it must know the selection
-  // before any query runs. Done in an effect so it is applied on first paint
-  // and on every change, including a restored selection.
-  useEffect(() => {
+  // Keeps the module-level value in step if it ever drifts from state - a
+  // StrictMode remount, or a second provider - before any child renders.
+  // Idempotent, and derived only from state, so it is safe during render.
+  if (getActiveWorkspaceId() !== (workspace?.id ?? null)) {
     setActiveWorkspaceId(workspace?.id ?? null);
-  }, [workspace]);
+  }
 
   const change = useCallback(
     (next: Workspace | null) => {
