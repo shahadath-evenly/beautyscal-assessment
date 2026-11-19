@@ -551,3 +551,139 @@
     justify-content: center;
   }
 }
+
+/* ------------------------------------------------------------ buyer page */
+/* Catalogue and summary side by side on a desktop; stacked on a phone, with
+   the summary first so the buyer can see what they have chosen. */
+.buyer-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 2fr) minmax(320px, 1fr);
+  gap: var(--space-5);
+  align-items: start;
+}
+
+.quantity-picker {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+
+.quantity-picker__input {
+  width: 64px;
+  height: 30px;
+  padding: 0 var(--space-2);
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
+/* The native number spinners duplicate the − and + controls. */
+.quantity-picker__input::-webkit-outer-spin-button,
+.quantity-picker__input::-webkit-inner-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.quantity-picker__input {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
+
+.quantity-picker__blocked {
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+.cart {
+  margin: 0 0 var(--space-4);
+  padding: 0;
+  list-style: none;
+}
+
+.cart__line {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cart__line-main {
+  flex: 1;
+  min-width: 0;
+}
+
+.cart__line-total {
+  font-weight: 500;
+}
+
+.cart__total {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  padding: var(--space-3) 0;
+  margin-bottom: var(--space-4);
+  border-top: 2px solid var(--color-border);
+  font-size: 15px;
+}
+
+.cart__total strong {
+  font-size: 18px;
+}
+
+.buyer-form {
+  margin-top: var(--space-2);
+}
+
+.buyer-form__error {
+  margin-bottom: var(--space-4);
+}
+
+.alert__message--muted {
+  margin-top: var(--space-1);
+  opacity: 0.85;
+  font-size: 12px;
+}
+
+.summary-list {
+  margin: var(--space-4) 0;
+}
+
+.summary-list__row {
+  display: flex;
+  justify-content: space-between;
+  gap: var(--space-4);
+  padding: var(--space-2) 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.summary-list dt {
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.summary-list dd {
+  margin: 0;
+  text-align: right;
+}
+
+.summary-list__mono {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.confirmation-table {
+  margin-top: var(--space-5);
+}
+
+.confirmation-table tfoot th,
+.confirmation-table tfoot td {
+  border-top: 2px solid var(--color-border);
+  border-bottom: 0;
+}
+
+@media (max-width: 960px) {
+  .buyer-layout {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
