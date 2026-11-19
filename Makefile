@@ -71,6 +71,47 @@ api:
 seed:
 	@$(LOAD_ENV); go run ./cmd/seed
 
+# --- Migrations (Atlas) ----------------------------------------------------
+# Every target loads .env, so DATABASE_URL comes from one place.
+
+## migrate-apply: apply pending migrations to DATABASE_URL
+.PHONY: migrate-apply
+migrate-apply:
+	@$(LOAD_ENV); atlas migrate apply --env local
+
+## migrate-status: show applied and pending migrations
+.PHONY: migrate-status
+migrate-status:
+	@$(LOAD_ENV); atlas migrate status --env local
+
+## migrate-new: create an empty migration file, e.g. make migrate-new name=add_x
+.PHONY: migrate-new
+migrate-new:
+	@test -n "$(name)" || { echo "usage: make migrate-new name=<description>"; exit 1; }
+	@$(LOAD_ENV); atlas migrate new $(name) --dir "file://db/migrations"
+	@echo "Write the SQL, then run: make migrate-hash"
+
+## migrate-hash: recompute atlas.sum after editing a migration file
+.PHONY: migrate-hash
+migrate-hash:
+	@$(LOAD_ENV); atlas migrate hash --dir "file://db/migrations"
+
+## migrate-validate: check the migration directory against atlas.sum
+.PHONY: migrate-validate
+migrate-validate:
+	@$(LOAD_ENV); atlas migrate validate --env local
+
+## migrate-fresh: DROP every table in DATABASE_URL and re-apply from scratch
+.PHONY: migrate-fresh
+migrate-fresh:
+	@$(LOAD_ENV); psql "$$DATABASE_URL" -v ON_ERROR_STOP=1 -q -c 'DROP SCHEMA IF EXISTS public CASCADE; CREATE SCHEMA public;'
+	@$(LOAD_ENV); atlas migrate apply --env local
+
+## verify-schema: assert the tenancy, stock and uniqueness invariants hold
+.PHONY: verify-schema
+verify-schema:
+	@$(LOAD_ENV); psql "$$DATABASE_URL" -v ON_ERROR_STOP=1 -q -f db/verify/invariants.sql
+
 # --- Checks ----------------------------------------------------------------
 
 ## check: gofmt, vet, build and tests
