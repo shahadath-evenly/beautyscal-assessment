@@ -116,6 +116,71 @@ doubles, which cannot represent every decimal amount exactly. Amounts are
 `NUMERIC(12,2)` in the database and fixed-point strings on the wire, converted
 through `big.Int` with no floating point anywhere.
 
+### `POST /api/order-requests`
+
+Submit a buyer request. The payload carries **only** buyer details, product
+IDs and quantities:
+
+```bash
+curl -X POST -H "X-Workspace-ID: $WS" -H "Content-Type: application/json" \
+  -d '{"buyerName":"Ada Lovelace","buyerEmail":"ada@example.com",
+       "items":[{"productId":"...","quantity":2}]}' \
+  localhost:8081/api/order-requests
+```
+
+Returns `201` with the created request, its lines and totals.
+
+**Prices are never taken from the client.** Unit prices, currencies and
+product names are read from PostgreSQL inside the creating transaction and
+stored as snapshots on the request's lines, so a later catalogue change cannot
+rewrite what a buyer was quoted. A payload carrying `unitPrice` is rejected
+outright, because unknown fields are refused.
+
+Validation:
+
+| Rule | Response |
+| --- | --- |
+| Buyer name required, email valid, at least one item, quantity > 0 | `422 validation_failed` with field details |
+| A product that does not exist **or belongs to another workspace** | `422` naming the product ID |
+| Items spanning more than one currency | `422` explaining the mismatch |
+| Malformed JSON, unknown field, empty body | `400 bad_request` |
+
+A product listed twice is merged into one line with the quantities summed,
+which keeps the stock arithmetic at acceptance unambiguous.
+
+Creation is one transaction: the products are loaded, the request and all its
+lines are inserted, and any failure leaves nothing behind.
+
+### `GET /api/order-requests`
+
+| Parameter | Default | Notes |
+| --- | --- | --- |
+| `page` | `1` | |
+| `limit` | `10` | 1 to 100 |
+| `search` | — | Matches buyer name or email |
+| `status` | — | `new`, `accepted` or `rejected`; anything else is a `400` |
+
+Each row carries the request's total, currency and item count, so the sales
+table needs no follow-up requests. The lines of every row on the page are
+loaded in a single query rather than one per row.
+
+### `GET /api/order-requests/{id}`
+
+Returns the buyer details, status, every line with quantity, unit price and
+line total, the request total and currency, and the timestamps. `404` when it
+does not exist or belongs to another workspace.
+
+```json
+{"data":{"id":"…","buyerName":"Ada Lovelace","buyerEmail":"ada@example.com",
+         "status":"new","itemCount":2,"total":"225.90","currency":"EUR",
+         "createdAt":"…","updatedAt":"…",
+         "items":[{"productId":"…","productName":"Rose Absolute Serum 30ml",
+                   "quantity":2,"unitPrice":"68.00","lineTotal":"136.00",
+                   "currency":"EUR"}]}}
+```
+
+Accept and reject arrive in the next phase.
+
 ## Tenancy: the workspace middleware
 
 Every route under `/api` is scoped to one workspace, resolved once by

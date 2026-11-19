@@ -15,6 +15,7 @@ import (
 	"github.com/real-musafir/b-scale/backend/internal/config"
 	"github.com/real-musafir/b-scale/backend/internal/db"
 	"github.com/real-musafir/b-scale/backend/internal/db/sqlc"
+	"github.com/real-musafir/b-scale/backend/internal/modules/orderrequest"
 	"github.com/real-musafir/b-scale/backend/internal/modules/product"
 	"github.com/real-musafir/b-scale/backend/internal/platform/logging"
 	"github.com/real-musafir/b-scale/backend/internal/platform/server"
@@ -68,17 +69,26 @@ func run() error {
 
 	// Each module is wired explicitly: repository, then service, then
 	// handler. No container, no reflection, no hidden globals.
+	validator := validate.New()
+
 	productHandler := product.NewHandler(
 		product.NewService(product.NewRepository(queries)),
+		logger,
+	)
+
+	orderRequestHandler := orderrequest.NewHandler(
+		orderrequest.NewService(orderrequest.NewRepository(pool, queries)),
+		validator,
 		logger,
 	)
 
 	router := server.NewRouter(server.Deps{
 		Logger:             logger,
 		Pool:               pool,
-		Validator:          validate.New(),
+		Validator:          validator,
 		Workspaces:         queries,
 		Products:           productHandler,
+		OrderRequests:      orderRequestHandler,
 		CORSAllowedOrigins: cfg.CORSAllowedOrigins,
 		RequestTimeout:     cfg.RequestTimeout,
 		MaxBodyBytes:       cfg.MaxBodyBytes,

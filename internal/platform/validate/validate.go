@@ -31,10 +31,13 @@ func New() *Validator {
 	return &Validator{v: v}
 }
 
-// FieldError is one field-level validation failure.
+// FieldError is one field-level validation failure. It carries both the rule
+// that failed, for clients that branch on it, and a readable message, so the
+// shape matches the field errors query-parameter validation produces.
 type FieldError struct {
-	Field string `json:"field"`
-	Rule  string `json:"rule"`
+	Field   string `json:"field"`
+	Rule    string `json:"rule"`
+	Message string `json:"message"`
 }
 
 // Struct validates s. It returns nil when valid, otherwise the field errors to
@@ -56,11 +59,48 @@ func (val *Validator) Struct(s any) (fieldErrs []FieldError, ok bool) {
 	if errors.As(err, &verrs) {
 		fieldErrs = make([]FieldError, 0, len(verrs))
 		for _, fe := range verrs {
-			fieldErrs = append(fieldErrs, FieldError{Field: fieldPath(fe), Rule: fe.Tag()})
+			fieldErrs = append(fieldErrs, FieldError{
+				Field:   fieldPath(fe),
+				Rule:    fe.Tag(),
+				Message: message(fe),
+			})
 		}
 		return fieldErrs, true
 	}
 	return nil, false
+}
+
+// message renders a failing rule as a sentence a person can act on. Unmapped
+// rules fall back to naming the constraint rather than printing nothing.
+func message(fe validator.FieldError) string {
+	switch fe.Tag() {
+	case "required":
+		return "is required"
+	case "email":
+		return "must be a valid email address"
+	case "min":
+		if fe.Kind() == reflect.Slice || fe.Kind() == reflect.Array {
+			return "must contain at least " + fe.Param() + " item(s)"
+		}
+		return "must be at least " + fe.Param() + " characters"
+	case "max":
+		if fe.Kind() == reflect.Slice || fe.Kind() == reflect.Array {
+			return "must contain at most " + fe.Param() + " item(s)"
+		}
+		return "must be at most " + fe.Param() + " characters"
+	case "gt":
+		return "must be greater than " + fe.Param()
+	case "gte":
+		return "must be " + fe.Param() + " or greater"
+	case "lt":
+		return "must be less than " + fe.Param()
+	case "lte":
+		return "must be " + fe.Param() + " or fewer"
+	case "uuid", "uuid4":
+		return "must be a valid UUID"
+	default:
+		return "failed the " + fe.Tag() + " rule"
+	}
 }
 
 // fieldPath renders the JSON path of a failing field relative to the DTO root,
