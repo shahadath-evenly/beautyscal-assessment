@@ -40,13 +40,34 @@ type Config struct {
 	DBMinConns int32
 	// DBConnectTimeout bounds the initial connectivity check at startup.
 	DBConnectTimeout time.Duration
+
+	// EnvFile is the .env file that was read, empty when none was found.
+	EnvFile string
+	// EnvInjected counts the variables that file contributed, so startup
+	// output can report them.
+	EnvInjected int
 }
 
 // Load reads configuration from the process environment, applying defaults for
 // everything optional. It returns an error when a required value is absent or
 // a provided value cannot be parsed, so the process fails fast at startup
 // rather than midway through serving traffic.
+//
+// Before reading the environment it loads a .env file from the working
+// directory, if one exists, so `go run ./cmd/api` behaves the same as running
+// through make. Real environment variables take precedence over the file,
+// which keeps Docker Compose and shell overrides authoritative. Point
+// ENV_FILE at another path to use a different file.
 func Load() (Config, error) {
+	envFile := DefaultEnvFile
+	if v, ok := os.LookupEnv("ENV_FILE"); ok && strings.TrimSpace(v) != "" {
+		envFile = strings.TrimSpace(v)
+	}
+	injected, found, err := loadEnvFile(envFile)
+	if err != nil {
+		return Config{}, err
+	}
+
 	cfg := Config{
 		AppEnv:             env("APP_ENV", "local"),
 		HTTPPort:           env("HTTP_PORT", "8081"),
@@ -56,7 +77,11 @@ func Load() (Config, error) {
 		CORSAllowedOrigins: splitAndTrim(env("CORS_ALLOWED_ORIGINS", "http://localhost:5173")),
 	}
 
-	var err error
+	if found {
+		cfg.EnvFile = envFile
+		cfg.EnvInjected = injected
+	}
+
 	if cfg.ReadHeaderTimeout, err = envDuration("READ_HEADER_TIMEOUT", 10*time.Second); err != nil {
 		return Config{}, err
 	}
