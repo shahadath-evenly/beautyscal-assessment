@@ -21,7 +21,8 @@ type PoolConfig struct {
 
 // NewPool parses the connection string, opens a pgx pool and verifies
 // connectivity with a bounded ping so startup fails fast when the database is
-// unreachable. The caller owns the returned pool and must Close it.
+// unreachable. ConnectTimeout bounds both that ping and every connection the
+// pool opens later. The caller owns the returned pool and must Close it.
 func NewPool(ctx context.Context, cfg PoolConfig) (*pgxpool.Pool, error) {
 	poolCfg, err := pgxpool.ParseConfig(cfg.DatabaseURL)
 	if err != nil {
@@ -29,6 +30,11 @@ func NewPool(ctx context.Context, cfg PoolConfig) (*pgxpool.Pool, error) {
 	}
 	poolCfg.MaxConns = cfg.MaxConns
 	poolCfg.MinConns = cfg.MinConns
+	// Bound every connection the pool opens, not just the first. Without
+	// this, a connection the pool creates mid-request to serve a burst can
+	// stall indefinitely and consume the whole request deadline, so the
+	// caller sees a timeout (500) instead of a prompt failure.
+	poolCfg.ConnConfig.ConnectTimeout = cfg.ConnectTimeout
 
 	pool, err := pgxpool.NewWithConfig(ctx, poolCfg)
 	if err != nil {
