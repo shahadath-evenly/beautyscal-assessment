@@ -11,6 +11,27 @@ import (
 	"github.com/jackc/pgx/v5/pgtype"
 )
 
+type EmailOutbox struct {
+	ID                uuid.UUID
+	WorkspaceID       uuid.UUID
+	OrderRequestID    uuid.UUID
+	EventType         string
+	RecipientEmail    string
+	RecipientName     string
+	Subject           string
+	BodyText          string
+	BodyHtml          string
+	Status            string
+	Attempts          int32
+	MaxAttempts       int32
+	NextAttemptAt     time.Time
+	LastError         *string
+	ProviderMessageID *string
+	SentAt            pgtype.Timestamptz
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
 type Order struct {
 	ID             uuid.UUID
 	WorkspaceID    uuid.UUID

@@ -17,6 +17,7 @@ import (
 	"github.com/jackc/pgx/v5"
 
 	"github.com/real-musafir/b-scale/backend/internal/db/sqlc"
+	"github.com/real-musafir/b-scale/backend/internal/email"
 	"github.com/real-musafir/b-scale/backend/internal/modules/orderrequest"
 	"github.com/real-musafir/b-scale/backend/internal/platform/httpx"
 	"github.com/real-musafir/b-scale/backend/internal/platform/money"
@@ -69,7 +70,7 @@ func newFixture(t *testing.T) *fixture {
 		Logger:     logger,
 		Workspaces: q,
 		OrderRequests: orderrequest.NewHandler(
-			orderrequest.NewService(orderrequest.NewRepository(tx, q)),
+			orderrequest.NewService(orderrequest.NewRepository(tx, q, email.NewOutbox(3))),
 			validate.New(),
 			logger,
 		),

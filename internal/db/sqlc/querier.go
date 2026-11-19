@@ -9,14 +9,27 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgtype"
 )
 
 type Querier interface {
+	// ClaimDueEmails takes the next batch of due events for this worker.
+	//
+	// FOR UPDATE SKIP LOCKED is what makes several workers safe: each skips rows
+	// another has locked rather than queueing behind them, so no event is claimed
+	// twice and none blocks. The claim moves the row to 'sending' and counts the
+	// attempt in the same statement, so a crash mid-send cannot produce an
+	// infinite retry loop.
+	//
+	ClaimDueEmails(ctx context.Context, limit int32) ([]EmailOutbox, error)
 	// Alternative to CreateOrderItems that never leaves the database: the order
 	// lines are built directly from the request's lines, so the snapshots cannot
 	// drift in transit. Quantities are aggregated by product to match the single
 	// stock decrement each product receives.
 	CopyOrderItemsFromRequest(ctx context.Context, arg CopyOrderItemsFromRequestParams) ([]OrderItem, error)
+	// CountEmailsByStatus backs a simple operational view of the queue.
+	//
+	CountEmailsByStatus(ctx context.Context) ([]CountEmailsByStatusRow, error)
 	// Same predicate as ListOrderRequests, so pagination metadata is consistent.
 	CountOrderRequests(ctx context.Context, arg CountOrderRequestsParams) (int64, error)
 	CountOrders(ctx context.Context, workspaceID uuid.UUID) (int64, error)
@@ -47,9 +60,20 @@ type Querier interface {
 	// row and returns no result rather than writing a negative value. The CHECK
 	// constraint backs this up at the storage level.
 	DecrementProductStock(ctx context.Context, arg DecrementProductStockParams) (Product, error)
+	// Outbox queries. The enqueue runs inside the acceptance transaction; the
+	// rest belong to the background worker.
+	// EnqueueEmail records the intent to notify a buyer. ON CONFLICT DO NOTHING
+	// against the one-event-per-request constraint: a retried acceptance must not
+	// queue a second message, and a missing row here must never fail an
+	// acceptance that has already reserved stock.
+	//
+	EnqueueEmail(ctx context.Context, arg EnqueueEmailParams) (EmailOutbox, error)
 	// Background job (bonus): expire requests left in 'new' for too long. Kept
 	// here so the statement is reviewed alongside the other status transitions.
 	ExpireStaleOrderRequests(ctx context.Context, olderThan time.Time) ([]OrderRequest, error)
+	// GetEmailEvent reads one event, for tests and for inspecting a delivery.
+	//
+	GetEmailEvent(ctx context.Context, id uuid.UUID) (EmailOutbox, error)
 	GetOrder(ctx context.Context, arg GetOrderParams) (Order, error)
 	GetOrderByRequest(ctx context.Context, arg GetOrderByRequestParams) (Order, error)
 	GetOrderRequest(ctx context.Context, arg GetOrderRequestParams) (OrderRequest, error)
@@ -71,6 +95,9 @@ type Querier interface {
 	// workspace ID, because they define it.
 	GetWorkspace(ctx context.Context, id uuid.UUID) (Workspace, error)
 	GetWorkspaceBySlug(ctx context.Context, slug string) (Workspace, error)
+	// ListEmailEventsForRequest shows what was queued for a request.
+	//
+	ListEmailEventsForRequest(ctx context.Context, arg ListEmailEventsForRequestParams) ([]EmailOutbox, error)
 	ListOrderItems(ctx context.Context, arg ListOrderItemsParams) ([]OrderItem, error)
 	ListOrderRequestItems(ctx context.Context, arg ListOrderRequestItemsParams) ([]OrderRequestItem, error)
 	// Loads the lines of several requests at once, so a list endpoint that needs
@@ -95,12 +122,31 @@ type Querier interface {
 	// Deterministic ordering is the deadlock guard; without it two transactions
 	// holding each other's rows could wait forever.
 	LockProductsForUpdate(ctx context.Context, arg LockProductsForUpdateParams) ([]Product, error)
+	// MarkEmailFailed gives up on an event: either the attempt budget is spent or
+	// the provider rejected it in a way retrying cannot fix. The row is kept, with
+	// its error, so the failure is visible rather than silent.
+	//
+	MarkEmailFailed(ctx context.Context, arg MarkEmailFailedParams) error
+	// MarkEmailSent closes an event the provider accepted.
+	//
+	MarkEmailSent(ctx context.Context, arg MarkEmailSentParams) error
 	// Step 4. The status = 'new' predicate makes the transition itself atomic: a
 	// request already accepted or rejected updates no row.
 	MarkOrderRequestAccepted(ctx context.Context, arg MarkOrderRequestAcceptedParams) (OrderRequest, error)
 	// Rejection touches no stock and creates no order. Returning no row means the
 	// request was missing, or no longer 'new'.
 	MarkOrderRequestRejected(ctx context.Context, arg MarkOrderRequestRejectedParams) (OrderRequest, error)
+	// ReleaseStaleClaims returns events to the queue after a worker died holding
+	// them. Without it a crash between claim and send would strand the row in
+	// 'sending' forever. The attempt is already counted, so a repeatedly crashing
+	// send still exhausts its budget.
+	//
+	ReleaseStaleClaims(ctx context.Context, staleAfter pgtype.Interval) ([]uuid.UUID, error)
+	// RescheduleEmail puts a failed attempt back in the queue after a delay. The
+	// caller computes the backoff, so the policy lives in one readable place in
+	// Go rather than in SQL.
+	//
+	RescheduleEmail(ctx context.Context, arg RescheduleEmailParams) error
 	// Aggregates the lines by product, so a product appearing more than once in a
 	// request is locked and decremented once, with its total quantity.
 	// Ordered by product_id to give every transaction the same lock order, which

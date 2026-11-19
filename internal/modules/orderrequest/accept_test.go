@@ -16,6 +16,7 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 
 	"github.com/real-musafir/b-scale/backend/internal/db/sqlc"
+	"github.com/real-musafir/b-scale/backend/internal/email"
 	"github.com/real-musafir/b-scale/backend/internal/modules/orderrequest"
 	"github.com/real-musafir/b-scale/backend/internal/platform/money"
 	"github.com/real-musafir/b-scale/backend/internal/platform/server"
@@ -71,7 +72,7 @@ func newPoolFixture(t *testing.T) *poolFixture {
 		Logger:     logger,
 		Workspaces: q,
 		OrderRequests: orderrequest.NewHandler(
-			orderrequest.NewService(orderrequest.NewRepository(pool, q)),
+			orderrequest.NewService(orderrequest.NewRepository(pool, q, email.NewOutbox(3))),
 			validate.New(),
 			logger,
 		),

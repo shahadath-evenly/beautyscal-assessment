@@ -192,5 +192,68 @@ EXCEPTION WHEN foreign_key_violation THEN
 END $$;
 ROLLBACK TO SAVEPOINT s;
 
+-- 12. ONE EMAIL EVENT PER REQUEST per event type: a retried acceptance must
+--     not queue a second message to the buyer.
+SAVEPOINT s;
+INSERT INTO email_outbox
+  (workspace_id, order_request_id, event_type, recipient_email, recipient_name,
+   subject, body_text, body_html)
+VALUES
+  ('11111111-1111-1111-1111-111111111111', 'cccccccc-0000-0000-0000-000000000001',
+   'order_request_accepted', 'ada@example.com', 'Ada Lovelace',
+   'Your order request has been accepted', 'plain', '<p>rich</p>');
+DO $$
+BEGIN
+  INSERT INTO email_outbox
+    (workspace_id, order_request_id, event_type, recipient_email, recipient_name,
+     subject, body_text, body_html)
+  VALUES
+    ('11111111-1111-1111-1111-111111111111', 'cccccccc-0000-0000-0000-000000000001',
+     'order_request_accepted', 'ada@example.com', 'Ada Lovelace',
+     'A second message', 'plain', '<p>rich</p>');
+  RAISE EXCEPTION 'FAIL: a duplicate email event was accepted';
+EXCEPTION WHEN unique_violation THEN
+  RAISE NOTICE '--- 12 duplicate email event rejected';
+END $$;
+ROLLBACK TO SAVEPOINT s;
+
+-- 13. A SENT EVENT MUST SAY WHEN. Nothing may claim delivery without a
+--     timestamp, and nothing unsent may carry one.
+SAVEPOINT s;
+INSERT INTO email_outbox
+  (workspace_id, order_request_id, event_type, recipient_email, recipient_name,
+   subject, body_text, body_html)
+VALUES
+  ('11111111-1111-1111-1111-111111111111', 'cccccccc-0000-0000-0000-000000000001',
+   'order_request_accepted', 'ada@example.com', 'Ada Lovelace',
+   'Your order request has been accepted', 'plain', '<p>rich</p>');
+DO $$
+BEGIN
+  UPDATE email_outbox SET status = 'sent'
+   WHERE order_request_id = 'cccccccc-0000-0000-0000-000000000001';
+  RAISE EXCEPTION 'FAIL: an event was marked sent without a sent_at';
+EXCEPTION WHEN check_violation THEN
+  RAISE NOTICE '--- 13 sent event without a timestamp rejected';
+END $$;
+ROLLBACK TO SAVEPOINT s;
+
+-- 14. AN EMAIL EVENT CANNOT CROSS WORKSPACES: the composite foreign key
+--     matches the request on its workspace as well as its ID.
+SAVEPOINT s;
+DO $$
+BEGIN
+  INSERT INTO email_outbox
+    (workspace_id, order_request_id, event_type, recipient_email, recipient_name,
+     subject, body_text, body_html)
+  VALUES
+    ('22222222-2222-2222-2222-222222222222', 'cccccccc-0000-0000-0000-000000000001',
+     'order_request_accepted', 'ada@example.com', 'Ada Lovelace',
+     'Your order request has been accepted', 'plain', '<p>rich</p>');
+  RAISE EXCEPTION 'FAIL: a cross-workspace email event was accepted';
+EXCEPTION WHEN foreign_key_violation THEN
+  RAISE NOTICE '--- 14 cross-workspace email event rejected';
+END $$;
+ROLLBACK TO SAVEPOINT s;
+
 \echo '--- ALL INVARIANTS HOLD'
 ROLLBACK;

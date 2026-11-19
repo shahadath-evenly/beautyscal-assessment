@@ -15,6 +15,7 @@ import (
 	"github.com/real-musafir/b-scale/backend/internal/config"
 	"github.com/real-musafir/b-scale/backend/internal/db"
 	"github.com/real-musafir/b-scale/backend/internal/db/sqlc"
+	"github.com/real-musafir/b-scale/backend/internal/email"
 	"github.com/real-musafir/b-scale/backend/internal/modules/orderrequest"
 	"github.com/real-musafir/b-scale/backend/internal/modules/product"
 	"github.com/real-musafir/b-scale/backend/internal/platform/logging"
@@ -71,13 +72,18 @@ func run() error {
 	// handler. No container, no reflection, no hidden globals.
 	validator := validate.New()
 
+	// Buyer notifications. The outbox writes the event inside the acceptance
+	// transaction; the worker sends it afterwards, so the HTTP response never
+	// waits on an email provider.
+	outbox := email.NewOutbox(cfg.Email.MaxAttempts)
+
 	productHandler := product.NewHandler(
 		product.NewService(product.NewRepository(queries)),
 		logger,
 	)
 
 	orderRequestHandler := orderrequest.NewHandler(
-		orderrequest.NewService(orderrequest.NewRepository(pool, queries)),
+		orderrequest.NewService(orderrequest.NewRepository(pool, queries, outbox)),
 		validator,
 		logger,
 	)
@@ -94,6 +100,34 @@ func run() error {
 		MaxBodyBytes:       cfg.MaxBodyBytes,
 	})
 
+	// The worker runs beside the server and stops with it. Its context is the
+	// signal context, so Ctrl-C ends the poll loop while each in-flight send
+	// keeps its own deadline.
+	var workerDone chan struct{}
+	if cfg.Email.Enabled {
+		sender, err := newSender(cfg, logger)
+		if err != nil {
+			return err
+		}
+		worker := email.NewWorker(queries, sender, logger, email.WorkerConfig{
+			PollInterval:    cfg.Email.PollInterval,
+			BatchSize:       cfg.Email.BatchSize,
+			Concurrency:     cfg.Email.Concurrency,
+			SendTimeout:     cfg.Email.SendTimeout,
+			RetryBaseDelay:  cfg.Email.RetryBaseDelay,
+			RetryMaxDelay:   cfg.Email.RetryMaxDelay,
+			StaleClaimAfter: cfg.Email.StaleClaimAfter,
+		})
+		workerDone = make(chan struct{})
+		go func() {
+			defer close(workerDone)
+			worker.Run(ctx)
+		}()
+		report.Done("Email worker running (" + sender.Name() + ")")
+	} else {
+		logger.Info("email worker disabled; acceptance events are still queued")
+	}
+
 	srv := server.New(server.Config{
 		Addr:              cfg.Addr(),
 		ReadHeaderTimeout: cfg.ReadHeaderTimeout,
@@ -109,6 +143,28 @@ func run() error {
 	if err := srv.Run(ctx); err != nil {
 		return err
 	}
+	// The server has drained; let the worker finish its current batch before
+	// the pool closes under it.
+	if workerDone != nil {
+		<-workerDone
+	}
 	report.Done("Server stopped")
 	return nil
+}
+
+// newSender picks the delivery mechanism. Brevo when it is configured, the
+// logging sender otherwise: the assessment accepts console logging, and this
+// keeps the outbox, the worker and the retry policy exercised on a machine
+// with no credentials.
+func newSender(cfg config.Config, logger *slog.Logger) (email.Sender, error) {
+	if !cfg.Email.Configured() {
+		logger.Info("no email provider configured; messages will be logged, not sent")
+		return email.NewLogSender(logger), nil
+	}
+	return email.NewBrevoSender(email.BrevoConfig{
+		APIKey:      cfg.Email.BrevoAPIKey,
+		SenderEmail: cfg.Email.BrevoSenderEmail,
+		SenderName:  cfg.Email.BrevoSenderName,
+		Timeout:     cfg.Email.SendTimeout,
+	})
 }

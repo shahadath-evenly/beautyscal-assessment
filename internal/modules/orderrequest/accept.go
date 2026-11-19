@@ -46,6 +46,7 @@ type Accepted struct {
 //  8. Copy the lines onto the order from the request's own snapshots, so the
 //     order records the prices that were quoted.
 //  9. Move the request to 'accepted', guarded on status = 'new'.
+//  10. Queue the buyer's notification through the outbox, if one is wired.
 //
 // Any error returns without committing, so the transaction unwinds and no
 // stock change, order or status change survives. There is no in-memory lock
@@ -192,6 +193,18 @@ func (r *Repository) Accept(ctx context.Context, workspaceID, requestID uuid.UUI
 		})
 		if err != nil {
 			return fmt.Errorf("orderrequest: load items: %w", err)
+		}
+
+		// 10. Queue the buyer's acceptance email in this same transaction.
+		//     The row and the order commit together, so there is no moment
+		//     where an order exists and nobody will ever be told — and no
+		//     network call happens here, so the provider cannot delay the
+		//     response or roll the acceptance back. A worker sends it after
+		//     the commit.
+		if r.notifier != nil {
+			if err := r.notifier.NotifyAccepted(ctx, q, workspaceID, accepted, items); err != nil {
+				return fmt.Errorf("orderrequest: queue acceptance notification: %w", err)
+			}
 		}
 
 		result = Accepted{Request: accepted, Items: items, Order: order}

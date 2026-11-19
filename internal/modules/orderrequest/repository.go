@@ -13,16 +13,36 @@ import (
 	"github.com/real-musafir/b-scale/backend/internal/platform/httpx"
 )
 
+// Notifier records a buyer notification inside a transaction the repository
+// already holds.
+//
+// It is an interface declared here, where it is used, so this module does not
+// depend on the email package: acceptance knows that something must be told
+// about an accepted request, not how it will be delivered. The implementation
+// must do only local work — rendering and one insert — because it runs with
+// the request and product rows locked.
+type Notifier interface {
+	NotifyAccepted(
+		ctx context.Context,
+		q *sqlc.Queries,
+		workspaceID uuid.UUID,
+		request sqlc.OrderRequest,
+		items []sqlc.OrderRequestItem,
+	) error
+}
+
 // Repository reads and writes order requests.
 type Repository struct {
-	db appdb.Beginner
-	q  *sqlc.Queries
+	db       appdb.Beginner
+	q        *sqlc.Queries
+	notifier Notifier
 }
 
 // NewRepository returns a Repository. db begins the transactions creation
-// needs; q serves the reads, which need none.
-func NewRepository(db appdb.Beginner, q *sqlc.Queries) *Repository {
-	return &Repository{db: db, q: q}
+// needs; q serves the reads, which need none. notifier may be nil, which
+// turns buyer notifications off without changing any other behaviour.
+func NewRepository(db appdb.Beginner, q *sqlc.Queries, notifier Notifier) *Repository {
+	return &Repository{db: db, q: q, notifier: notifier}
 }
 
 // CreateParams is what the service asks the repository to persist.
