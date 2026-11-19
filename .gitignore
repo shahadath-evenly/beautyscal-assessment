@@ -1,0 +1,18 @@
+# Repository-wide ignores. Backend and frontend keep their own .gitignore for
+# the files only they generate.
+
+# Local environment. Never committed: see .env.example for the shape.
+.env
+.env.*
+!.env.example
+
+# macOS
+.DS_Store
+
+# Editors
+.idea/
+.vscode/
+*.swp
+
+# Local database volumes
+/data/
