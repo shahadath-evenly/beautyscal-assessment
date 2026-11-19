@@ -2,8 +2,8 @@
 /bin/
 /tmp/
 /out/
-api
-seed
+/api
+/seed
 *.exe
 *.exe~
 *.dll
